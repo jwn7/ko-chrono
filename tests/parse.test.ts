@@ -61,6 +61,26 @@ describe('절대 날짜', () => {
   it('5일 (일 단독, 이번달)', () => expect(p('5일에 보자')!.date).toEqual(d(2026, 10, 5)));
 });
 
+describe('요일/날짜 + 시각 단어', () => {
+  it('토요일 아침', () => {
+    const r = p('토요일 아침');
+    expect(r!.date).toEqual(d(2026, 10, 31, 8));
+    expect(r!.text).toBe('토요일 아침');
+    expect(r!.hasTime).toBe(true);
+  });
+  it('내일 저녁', () => {
+    const r = p('내일 저녁');
+    expect(r!.date).toEqual(d(2026, 10, 31, 19));
+    expect(r!.text).toBe('내일 저녁');
+  });
+  it('다음주 화요일 점심', () => expect(p('다음주 화요일 점심')!.date).toEqual(d(2026, 11, 3, 12)));
+  it('모레 밤에 전화할게', () => {
+    const r = p('모레 밤에 전화할게');
+    expect(r!.date).toEqual(d(2026, 11, 1, 21));
+    expect(r!.text).toBe('모레 밤');
+  });
+});
+
 describe('두 자리 연도', () => {
   // 00~69 → 20xx, 70~99 → 19xx
   it('26년 12월 1일', () => {
