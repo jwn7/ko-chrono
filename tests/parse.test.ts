@@ -102,6 +102,22 @@ describe('요일/날짜 + 시각 단어', () => {
   });
 });
 
+describe('띄어쓰기 변형', () => {
+  it('다음주화요일', () => expect(p('다음주화요일')!.date).toEqual(d(2026, 11, 3)));
+  it('오후3시', () => expect(p('오후3시')!.date).toEqual(d(2026, 10, 30, 15)));
+  it('11월5일', () => expect(p('11월5일')!.date).toEqual(d(2026, 11, 5)));
+  it('다음 주 화요일', () => expect(p('다음 주 화요일')!.date).toEqual(d(2026, 11, 3)));
+  it('내일오후3시반에봐', () => {
+    const r = p('내일오후3시반에봐');
+    expect(r!.date).toEqual(d(2026, 10, 31, 15, 30));
+    expect(r!.text).toBe('내일오후3시반');
+  });
+  it('3일뒤', () => expect(p('3일뒤')!.date).toEqual(d(2026, 11, 2)));
+  it('다음달말', () => expect(p('다음달말')!.date).toEqual(d(2026, 11, 30)));
+  it('이번주말까지', () => expect(p('이번주말까지')!.end).toEqual(d(2026, 10, 31, 23, 59)));
+  it('2027년1월2일', () => expect(p('2027년1월2일')!.date).toEqual(d(2027, 1, 2)));
+});
+
 describe('한글 월일', () => {
   it('십일월 오일', () => {
     const r = p('십일월 오일에 봐');
