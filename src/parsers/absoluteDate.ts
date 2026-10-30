@@ -2,7 +2,7 @@ import type { Fragment, Parser } from '../types.js';
 import { parseKoreanNumber } from '../util/number.js';
 
 // 2026년 11월 5일 / 26년 11월 5일 / 11월 5일 / 11/5 / 2026-11-05 / 26.11.5 / 11.5(월일로 해석)
-const FULL = /(?:(?<!\d)(\d{4}|\d{2})\s*년\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
+const FULL = /(?:(?<!\d)(\d{4}|\d{2})\s*년\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일(?!간|\s*동안)/g;
 const ISO = /(?<![\d/.-])(\d{4}|\d{2})[-./]\s*(\d{1,2})[-./]\s*(\d{1,2})(?!\d)/g;
 const SLASH = /(?<![\d/.-])(\d{1,2})\s*[/.]\s*(\d{1,2})(?![\d/.:])/g;
 // "십일월 오일", "유월 이십오일" (오탐 방지를 위해 월과 일이 모두 있을 때만)
@@ -12,7 +12,8 @@ const HANGUL_MONTH: Record<string, number> = { 유: 6, 시: 10 };
 const YEAR_ONLY = /(?<!\d)((?:19|20)\d{2})\s*년(?!\s*\d{1,2}\s*월)/g;
 // "11월" 단독, "5일" 단독
 const MONTH_ONLY = /(?<![\d가-힣])(\d{1,2})\s*월(?!\s*\d{1,2}\s*일)/g;
-const DAY_ONLY = /(?<!\d)(\d{1,2})\s*일(?!요일)/g;
+// "5일간", "3일 동안", "3박 4일"은 기간이지 날짜가 아니다
+const DAY_ONLY = /(?<!\d)(?<!\d\s*박\s*)(\d{1,2})\s*일(?!요일|간|\s*동안)/g;
 
 /** 두 자리 연도 확장: 00~69 → 20xx, 70~99 → 19xx */
 const expandYear = (y: string): number => {

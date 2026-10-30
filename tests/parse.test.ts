@@ -90,6 +90,17 @@ describe('지난 달 → 내년 (규칙 13)', () => {
   it('12월', () => expect(p('12월')!.date).toEqual(d(2026, 12, 1)));
 });
 
+describe('기간 표현은 날짜가 아니다', () => {
+  it('5일간 (잡지 않음)', () => expect(p('5일간 여행')).toBeNull());
+  it('3박 4일 (잡지 않음)', () => expect(p('3박 4일')).toBeNull());
+  it('3일 동안 (잡지 않음)', () => expect(p('3일 동안')).toBeNull());
+  it('월요일부터 금요일까지', () => {
+    const r = p('월요일부터 금요일까지');
+    expect(r!.date).toEqual(d(2026, 11, 2));
+    expect(r!.end).toEqual(d(2026, 11, 6, 23, 59));
+  });
+});
+
 describe('구어체', () => {
   it('담주 월욜', () => expect(p('담주 월욜')!.date).toEqual(d(2026, 11, 2)));
   it('화욜', () => expect(p('화욜')!.date).toEqual(d(2026, 11, 3)));
@@ -307,12 +318,34 @@ describe('시각', () => {
     expect(p('낮 12시')!.date).toEqual(d(2026, 10, 31, 12));
   });
   it('고유어 시', () => {
-    expect(p('내일 세 시')!.date).toEqual(d(2026, 10, 31, 3));
+    expect(p('내일 세 시')!.date).toEqual(d(2026, 10, 31, 15));
     expect(p('내일 오후 두시 반')!.date).toEqual(d(2026, 10, 31, 14, 30));
   });
   it('15:30', () => expect(p('내일 15:30')!.date).toEqual(d(2026, 10, 31, 15, 30)));
   it('오후 12시 (24시가 아니라 정오)', () => expect(p('내일 오후 12시')!.date).toEqual(d(2026, 10, 31, 12)));
   it('오후 12시 30분', () => expect(p('내일 오후 12시 30분')!.date).toEqual(d(2026, 10, 31, 12, 30)));
+  it('오전/오후 없는 1~6시는 오후 (규칙 20)', () => {
+    expect(p('3시에 보자')!.date).toEqual(d(2026, 10, 30, 15));
+    expect(p('내일 2시 반')!.date).toEqual(d(2026, 10, 31, 14, 30));
+    expect(p('6시')!.date).toEqual(d(2026, 10, 30, 18));
+    expect(p('7시')!.date).toEqual(d(2026, 10, 31, 7)); // 7~11시는 그대로
+    expect(p('12시')!.date).toEqual(d(2026, 10, 31, 12));
+    expect(p('5시까지 보내줘')!.end).toEqual(d(2026, 10, 30, 17));
+    expect(p('내일 3:30')!.date).toEqual(d(2026, 10, 31, 3, 30)); // 24시간 표기는 그대로
+  });
+  it('밤 1시 (새벽)', () => expect(p('밤 1시')!.date).toEqual(d(2026, 10, 31, 1)));
+  it('밤 11시 반', () => expect(p('밤 11시 반')!.date).toEqual(d(2026, 10, 30, 23, 30)));
+  it('오후 3:30', () => expect(p('오후 3:30')!.date).toEqual(d(2026, 10, 30, 15, 30)));
+  it('오전 9:00', () => expect(p('내일 오전 9:00')!.date).toEqual(d(2026, 10, 31, 9)));
+  it('7시30', () => expect(p('내일 7시30')!.date).toEqual(d(2026, 10, 31, 7, 30)));
+  it('3시 정각', () => {
+    const r = p('3시 정각에');
+    expect(r!.date).toEqual(d(2026, 10, 30, 15));
+    expect(r!.text).toBe('3시 정각');
+  });
+  it('3pm', () => expect(p('3pm')!.date).toEqual(d(2026, 10, 30, 15)));
+  it('9 AM', () => expect(p('내일 9 AM')!.date).toEqual(d(2026, 10, 31, 9)));
+  it('12pm', () => expect(p('내일 12pm')!.date).toEqual(d(2026, 10, 31, 12)));
   it('점심/정오/자정', () => {
     expect(p('모레 점심')!.date).toEqual(d(2026, 11, 1, 12));
     // 규칙 12: 날짜 + 자정 = 그 날의 끝 (다음날 00:00)
@@ -348,7 +381,7 @@ describe('시 범위 (규칙 16)', () => {
     const r = p(s);
     return [r!.date, r!.end];
   };
-  it('3시부터 5시까지', () => expect(range('3시부터 5시까지')).toEqual([d(2026, 10, 31, 3), d(2026, 10, 31, 5)]));
+  it('3시부터 5시까지', () => expect(range('3시부터 5시까지')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 30, 17)]));
   it('오후 3시부터 5시까지', () =>
     expect(range('오후 3시부터 5시까지')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 30, 17)]));
   it('내일 오후 2시부터 4시 반까지', () =>
@@ -359,7 +392,7 @@ describe('시 범위 (규칙 16)', () => {
     expect(range('오후 11시부터 1시까지')).toEqual([d(2026, 10, 30, 23), d(2026, 10, 31, 1)]));
   it('오후 3시부터 오전 1시까지', () =>
     expect(range('오후 3시부터 오전 1시까지')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 31, 1)]));
-  it('3~5시', () => expect(range('3~5시')).toEqual([d(2026, 10, 31, 3), d(2026, 10, 31, 5)]));
+  it('3~5시', () => expect(range('3~5시')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 30, 17)]));
   it('내일 오후 3~5시 회의', () => {
     const r = p('내일 오후 3~5시 회의');
     expect([r!.date, r!.end]).toEqual([d(2026, 10, 31, 15), d(2026, 10, 31, 17)]);
@@ -387,7 +420,7 @@ describe('문장 속', () => {
     const rs = parseAll('내일 10시 아니면 모레 2시', { referenceDate: ref });
     expect(rs).toHaveLength(2);
     expect(rs[0].date).toEqual(d(2026, 10, 31, 10));
-    expect(rs[1].date).toEqual(d(2026, 11, 1, 2));
+    expect(rs[1].date).toEqual(d(2026, 11, 1, 14));
   });
   it('없으면 null', () => {
     expect(p('안녕하세요')).toBeNull();

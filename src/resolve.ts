@@ -59,6 +59,11 @@ export function isTimeOnly(c: Components): boolean {
   );
 }
 
+/** 날짜 정보가 요일뿐인 조각인지 ("금요일까지") */
+export function isWeekdayOnly(c: Components): boolean {
+  return c.weekday !== undefined && DATE_KEYS.every((k) => k === 'weekday' || c[k] === undefined);
+}
+
 /** 날짜 정보가 "N일"뿐인 조각인지 ("3일까지") */
 export function isDayOnly(c: Components): boolean {
   return c.day !== undefined && DATE_KEYS.every((k) => k === 'day' || c[k] === undefined);
@@ -175,13 +180,15 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
 
   // 5. 시각
   if (c.hour !== undefined) {
+    // 규칙 20: 오전/오후 없는 1~6시는 오후 ("3시에 보자" → 15시). 7~11시는 그대로.
+    const hour = !c.meridiem && c.hour >= 1 && c.hour <= 6 ? c.hour + 12 : c.hour;
     if (!dateSet) {
       d = new Date(ref);
       // 시간만 있고 날짜가 없으면: 오늘, 이미 지났으면 내일
-      d.setHours(c.hour, c.minute ?? 0, 0, 0);
+      d.setHours(hour, c.minute ?? 0, 0, 0);
       if (d < ref) d.setDate(d.getDate() + 1);
     } else {
-      d.setHours(c.hour, c.minute ?? 0, 0, 0);
+      d.setHours(hour, c.minute ?? 0, 0, 0);
       // "내일 자정" = 내일이 끝나는 시점
       if (c.midnight) d.setDate(d.getDate() + 1);
     }

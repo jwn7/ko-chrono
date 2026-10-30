@@ -6,7 +6,7 @@ import { absoluteDate } from './parsers/absoluteDate.js';
 import { relativeMonth } from './parsers/relativeMonth.js';
 import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
-import { alignEnd, groupFragments, isDayOnly, isTimeOnly, merge, resolve } from './resolve.js';
+import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
 
 export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 
@@ -41,7 +41,7 @@ function dedupe(frags: Fragment[]): Fragment[] {
  *
  * @example
  * parseAll('내일 10시 아니면 모레 2시');
- * // → [{ date: 내일 10:00, text: '내일 10시', ... }, { date: 모레 02:00, text: '모레 2시', ... }]
+ * // → [{ date: 내일 10:00, text: '내일 10시', ... }, { date: 모레 14:00, text: '모레 2시', ... }]
  *
  * @example
  * parseAll('11월 1일부터 11월 3일까지');
@@ -92,6 +92,8 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
           end = new Date(y, m0, bc.day!, end.getHours(), end.getMinutes());
           if (end < a.date) end = new Date(y, m0 + 1, bc.day!, end.getHours(), end.getMinutes());
         }
+        // "월요일부터 금요일까지": 끝 요일이 시작보다 앞이면 다음 주
+        if (isWeekdayOnly(bc) && end < a.date) end.setDate(end.getDate() + 7);
         if (!b.end && !b.hasTime) end = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59);
       }
       merged.push({ ...a, end, text: text.slice(a.index, b.index + b.text.length).trim() });
