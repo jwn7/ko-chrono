@@ -5,10 +5,25 @@ import { parseKoreanNumber } from '../util/number.js';
 const RE =
   /(?:(\d+|[일이삼사오육칠팔구십한두세네다섯여섯일곱여덟아홉열]+)\s*(일|주|주일|달|개월|시간|분)|(보름|열흘))\s*(뒤|후|전|이내|안에|이후)/g;
 
+// "한 시간 반 뒤", "1시간 30분 후", "2시간반 전"
+const HOUR_MIN =
+  /(\d+|[일이삼사오육칠팔구십한두세네다섯여섯일곱여덟아홉열]+)\s*시간\s*(?:(반)|(\d+)\s*분)\s*(뒤|후|전|이내|안에|이후)/g;
+
 /** "N일 뒤 / N주 후 / N달 전 / N시간 뒤 / N분 후" */
 export const offset: Parser = (text) => {
   const out: Fragment[] = [];
+  const taken: Array<[number, number]> = [];
+  for (const m of text.matchAll(HOUR_MIN)) {
+    const h = parseKoreanNumber(m[1]);
+    if (h == null) continue;
+    const sign = m[4] === '전' ? -1 : 1;
+    const c: Components = { hourOffset: sign * h, minuteOffset: sign * (m[2] ? 30 : +m[3]) };
+    if (m[4] === '이내' || m[4] === '안에') c.isEnd = true;
+    out.push({ text: m[0], index: m.index!, components: c });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
   for (const m of text.matchAll(RE)) {
+    if (taken.some(([s, e]) => m.index! < e && m.index! + m[0].length > s)) continue;
     const n = parseKoreanNumber(m[3] ?? m[1]);
     if (n == null) continue;
     const sign = m[4] === '전' ? -1 : 1;

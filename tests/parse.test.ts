@@ -32,6 +32,14 @@ describe('N단위 뒤/전', () => {
   it('세 시간 뒤', () => expect(p('세 시간 뒤')!.date).toEqual(d(2026, 10, 30, 17)));
   it('30분 후', () => expect(p('30분 후')!.date).toEqual(d(2026, 10, 30, 14, 30)));
   it('열흘 뒤', () => expect(p('열흘 뒤')!.date).toEqual(d(2026, 11, 9)));
+  it('10분 뒤', () => expect(p('10분 뒤')!.date).toEqual(d(2026, 10, 30, 14, 10)));
+  it('한 시간 반 뒤', () => {
+    const r = p('한 시간 반 뒤에 출발');
+    expect(r!.date).toEqual(d(2026, 10, 30, 15, 30));
+    expect(r!.text).toBe('한 시간 반 뒤');
+  });
+  it('1시간 30분 후', () => expect(p('1시간 30분 후')!.date).toEqual(d(2026, 10, 30, 15, 30)));
+  it('2시간반 전', () => expect(p('2시간반 전')!.date).toEqual(d(2026, 10, 30, 11, 30)));
 });
 
 describe('요일', () => {
