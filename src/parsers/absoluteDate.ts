@@ -1,9 +1,13 @@
 import type { Fragment, Parser } from '../types.js';
+import { parseKoreanNumber } from '../util/number.js';
 
 // 2026년 11월 5일 / 26년 11월 5일 / 11월 5일 / 11/5 / 2026-11-05 / 26.11.5 / 11.5(월일로 해석)
 const FULL = /(?:(?<!\d)(\d{4}|\d{2})\s*년\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
 const ISO = /(?<![\d/.-])(\d{4}|\d{2})[-./]\s*(\d{1,2})[-./]\s*(\d{1,2})(?!\d)/g;
 const SLASH = /(?<![\d/.-])(\d{1,2})\s*[/.]\s*(\d{1,2})(?![\d/.:])/g;
+// "십일월 오일", "유월 이십오일" (오탐 방지를 위해 월과 일이 모두 있을 때만)
+const HANGUL = /(?<![가-힣])(유|시|[일이삼사오육칠팔구십]{1,2})월\s*([일이삼사오육칠팔구십]{1,3})일(?!요일)/g;
+const HANGUL_MONTH: Record<string, number> = { 유: 6, 시: 10 };
 // "11월" 단독, "5일" 단독
 const MONTH_ONLY = /(?<![\d가-힣])(\d{1,2})\s*월(?!\s*\d{1,2}\s*일)/g;
 const DAY_ONLY = /(?<!\d)(\d{1,2})\s*일(?!요일)/g;
@@ -36,6 +40,13 @@ export const absoluteDate: Parser = (text) => {
     const c: Fragment['components'] = { month: +m[2], day: +m[3] };
     if (m[1]) c.year = expandYear(m[1]);
     out.push({ text: m[0], index: m.index!, components: c });
+  }
+  for (const m of text.matchAll(HANGUL)) {
+    const month = HANGUL_MONTH[m[1]] ?? parseKoreanNumber(m[1]);
+    const day = parseKoreanNumber(m[2]);
+    if (month == null || day == null || month < 1 || month > 12 || day < 1 || day > 31) continue;
+    if (!take(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { month, day } });
   }
   for (const m of text.matchAll(SLASH)) {
     if (!take(m.index!, m[0].length)) continue;

@@ -102,6 +102,19 @@ describe('요일/날짜 + 시각 단어', () => {
   });
 });
 
+describe('한글 월일', () => {
+  it('십일월 오일', () => {
+    const r = p('십일월 오일에 봐');
+    expect(r!.date).toEqual(d(2026, 11, 5));
+    expect(r!.text).toBe('십일월 오일');
+  });
+  it('유월 이십오일', () => expect(p('유월 이십오일')!.date).toEqual(d(2027, 6, 25)));
+  it('시월 삼십일일', () => expect(p('시월 삼십일일')!.date).toEqual(d(2026, 10, 31)));
+  it('십이월 이십오일', () => expect(p('십이월 이십오일')!.date).toEqual(d(2026, 12, 25)));
+  // 오탐 방지: 월 없이 "오일"만 있으면 잡지 않는다
+  it('오일 교환 (잡지 않음)', () => expect(p('오일 교환')).toBeNull());
+});
+
 describe('연도 상대', () => {
   it('올해 말', () => expect(p('올해 말')!.date).toEqual(d(2026, 12, 31)));
   it('내년 초', () => expect(p('내년 초')!.date).toEqual(d(2027, 1, 1)));
