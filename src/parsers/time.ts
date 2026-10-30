@@ -13,9 +13,11 @@ const WORD_HOUR: Record<string, number> = { 정오: 12, 자정: 0, 점심: 12, �
 function applyMeridiem(prefix: string | undefined, hour: number): number {
   if (hour === 24) return 0;
   switch (prefix) {
+    case '밤':
+      // 밤 12시 = 자정
+      return hour === 12 ? 0 : hour < 12 ? hour + 12 : hour;
     case '오후':
     case '저녁':
-    case '밤':
     case '낮':
       return hour < 12 ? hour + 12 : hour;
     case '오전':

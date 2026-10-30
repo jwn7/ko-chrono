@@ -102,6 +102,34 @@ describe('요일/날짜 + 시각 단어', () => {
   });
 });
 
+describe('엣지 케이스', () => {
+  // 연말/월말 넘어감
+  it('62일 뒤', () => expect(p('62일 뒤')!.date).toEqual(d(2026, 12, 31)));
+  it('63일 뒤', () => expect(p('63일 뒤')!.date).toEqual(d(2027, 1, 1)));
+  it('다다음달 말', () => expect(p('다다음달 말')!.date).toEqual(d(2026, 12, 31)));
+  // 윤년
+  it('2028년 2월 29일', () => expect(p('2028년 2월 29일')!.date).toEqual(d(2028, 2, 29)));
+  it('2028-02-29', () => expect(p('2028-02-29')!.date).toEqual(d(2028, 2, 29)));
+  // 없는 날짜는 다음 달로 넘기지 않고 null
+  it('2027년 2월 29일 (윤년 아님)', () => expect(p('2027년 2월 29일')).toBeNull());
+  it('2027-02-29', () => expect(p('2027-02-29')).toBeNull());
+  it('11월 31일', () => expect(p('11월 31일')).toBeNull());
+  it('11/31', () => expect(p('11/31')).toBeNull());
+  it('다음달 31일', () => expect(p('다음달 31일')).toBeNull());
+  // 24시 / 밤 12시
+  it('24시', () => expect(p('24시')!.date).toEqual(d(2026, 10, 31, 0)));
+  it('25시', () => expect(p('25시')).toBeNull());
+  it('밤 12시', () => expect(p('밤 12시')!.date).toEqual(d(2026, 10, 31, 0)));
+  it('오전 12시', () => expect(p('오전 12시')!.date).toEqual(d(2026, 10, 31, 0)));
+  // 연도 단독
+  it('2027년', () => {
+    const r = p('2027년에 출시');
+    expect(r!.date).toEqual(d(2027, 1, 1));
+    expect(r!.text).toBe('2027년');
+  });
+  it('3000년 (범위 밖, 잡지 않음)', () => expect(p('3000년')).toBeNull());
+});
+
 describe('띄어쓰기 변형', () => {
   it('다음주화요일', () => expect(p('다음주화요일')!.date).toEqual(d(2026, 11, 3)));
   it('오후3시', () => expect(p('오후3시')!.date).toEqual(d(2026, 10, 30, 15)));

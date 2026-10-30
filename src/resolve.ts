@@ -70,6 +70,8 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     const m0 = c.month !== undefined ? c.month - 1 : hasYear ? 0 : ref.getMonth();
     let day = c.day ?? (c.month !== undefined || hasYear ? 1 : ref.getDate());
     if (c.monthPart) day = partDay(y, m0, c.monthPart);
+    // 2월 30일, 11월 31일처럼 없는 날짜는 다음 달로 넘기지 않고 버린다
+    if (day > lastDayOfMonth(y, m0)) return null;
     d = new Date(y, m0, day);
     // 연도 미지정 + 이미 지난 날짜 → 내년으로 (월일만 있을 때)
     if (!hasYear && c.month !== undefined && c.day !== undefined) {
@@ -84,6 +86,7 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     const y = ref.getFullYear();
     const m0 = ref.getMonth() + c.monthOffset;
     const day = c.monthPart ? partDay(y, m0, c.monthPart) : c.day ?? 1;
+    if (day > lastDayOfMonth(y, m0)) return null;
     d = new Date(y, m0, day);
     dateSet = true;
   }

@@ -8,6 +8,8 @@ const SLASH = /(?<![\d/.-])(\d{1,2})\s*[/.]\s*(\d{1,2})(?![\d/.:])/g;
 // "십일월 오일", "유월 이십오일" (오탐 방지를 위해 월과 일이 모두 있을 때만)
 const HANGUL = /(?<![가-힣])(유|시|[일이삼사오육칠팔구십]{1,2})월\s*([일이삼사오육칠팔구십]{1,3})일(?!요일)/g;
 const HANGUL_MONTH: Record<string, number> = { 유: 6, 시: 10 };
+// "2027년" 단독 (월이 뒤따르지 않을 때). "26년"은 "26년 동안" 오탐이 있어 4자리만
+const YEAR_ONLY = /(?<!\d)((?:19|20)\d{2})\s*년(?!\s*\d{1,2}\s*월)/g;
 // "11월" 단독, "5일" 단독
 const MONTH_ONLY = /(?<![\d가-힣])(\d{1,2})\s*월(?!\s*\d{1,2}\s*일)/g;
 const DAY_ONLY = /(?<!\d)(\d{1,2})\s*일(?!요일)/g;
@@ -53,6 +55,10 @@ export const absoluteDate: Parser = (text) => {
     const month = +m[1], day = +m[2];
     if (month < 1 || month > 12 || day < 1 || day > 31) continue;
     out.push({ text: m[0], index: m.index!, components: { month, day } });
+  }
+  for (const m of text.matchAll(YEAR_ONLY)) {
+    if (!take(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { year: +m[1] } });
   }
   for (const m of text.matchAll(MONTH_ONLY)) {
     if (!take(m.index!, m[0].length)) continue;
