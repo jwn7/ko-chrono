@@ -21,6 +21,12 @@
   },
   "keywords": ["korean", "한국어", "date", "parser", "natural-language", "날짜", "nlp", "chrono"],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jwn7/ko-chrono.git"
+  },
+  "homepage": "https://github.com/jwn7/ko-chrono#readme",
+  "bugs": "https://github.com/jwn7/ko-chrono/issues",
   "devDependencies": {
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
