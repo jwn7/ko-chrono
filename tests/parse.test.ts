@@ -185,6 +185,36 @@ describe('N째 주 (규칙 22)', () => {
   it('2월 첫째 주 (지난 달 → 내년)', () => expect(p('2월 첫째 주')!.date).toEqual(d(2027, 2, 1)));
 });
 
+describe('오탐 방지', () => {
+  it('2시간짜리 영화', () => expect(p('2시간짜리 영화')).toBeNull());
+  it('12시간 근무', () => expect(p('12시간 근무')).toBeNull());
+  it('24시간 편의점', () => expect(p('24시간 편의점')).toBeNull());
+  it('한 시간짜리', () => expect(p('한 시간짜리')).toBeNull());
+  it('3일 연속', () => expect(p('3일 연속')).toBeNull());
+  it('1월생', () => expect(p('1월생')).toBeNull());
+  it('12월생이야', () => expect(p('12월생이야')).toBeNull());
+  it('밤새 작업했어', () => expect(p('밤새 작업했어')).toBeNull());
+  it('주말농장', () => expect(p('주말농장')).toBeNull());
+  it('연말정산', () => expect(p('연말정산 서류')).toBeNull());
+  it('주말에 (정상)', () => expect(p('주말에')!.date).toEqual(d(2026, 10, 31)));
+  it('3시간 뒤 (정상)', () => expect(p('3시간 뒤')!.date).toEqual(d(2026, 10, 30, 17)));
+});
+
+describe('내내', () => {
+  it('이번 주 내내', () => {
+    const r = p('이번 주 내내 비 온대');
+    expect(r!.date).toEqual(d(2026, 10, 26));
+    expect(r!.end).toEqual(d(2026, 11, 1, 23, 59));
+    expect(r!.text).toBe('이번 주 내내');
+  });
+  it('다음 달 내내', () => {
+    const r = p('다음 달 내내');
+    expect([r!.date, r!.end]).toEqual([d(2026, 11, 1), d(2026, 11, 30, 23, 59)]);
+  });
+  it('내년 내내', () => expect(p('내년 내내')!.end).toEqual(d(2027, 12, 31, 23, 59)));
+  it('내일 내내', () => expect(p('내일 내내')!.end).toEqual(d(2026, 10, 31, 23, 59)));
+});
+
 describe('기간 표현은 날짜가 아니다', () => {
   it('5일간 (잡지 않음)', () => expect(p('5일간 여행')).toBeNull());
   it('3박 4일 (잡지 않음)', () => expect(p('3박 4일')).toBeNull());

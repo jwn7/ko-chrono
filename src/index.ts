@@ -16,6 +16,8 @@ const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, rela
 // "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
 const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로)/;
 const FROM = /^\s*(부터|~)\s*/;
+// "이번 주 내내" → 그 기간 전체
+const WHOLE = /^\s*내내/;
 
 function withDefaults(opts?: ParseOptions): Required<ParseOptions> {
   return {
@@ -58,8 +60,9 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
   for (const g of groups) {
     const last = g[g.length - 1];
     const tail = text.slice(last.index + last.text.length);
-    const until = UNTIL.exec(tail);
-    if (until) last.components.isEnd = true;
+    const until = UNTIL.exec(tail) ?? WHOLE.exec(tail);
+    if (until && until[0].includes('내내')) last.components.whole = true;
+    else if (until) last.components.isEnd = true;
     if (FROM.test(tail)) last.components.isStart = true;
 
     const r = resolve(g, opts);

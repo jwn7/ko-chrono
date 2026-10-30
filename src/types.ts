@@ -47,6 +47,8 @@ export interface Components {
   durationMinutes?: number;
   /** "N째 주": 1~5, 마지막은 -1. weekday가 있으면 그 달의 N번째 그 요일, 없으면 N번째 주 시작일 */
   nthWeek?: number;
+  /** "이번 주 내내": 그 기간 전체. date는 시작, end는 기간의 끝 */
+  whole?: boolean;
   /** 이 조각이 "~까지" 종료점인지 */
   isEnd?: boolean;
   /** 이 조각이 "~부터" 시작점인지 */

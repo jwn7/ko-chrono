@@ -252,22 +252,25 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     return result;
   }
 
-  if (c.isEnd) {
+  if (c.isEnd || c.whole) {
     // "~까지", "~이내": 시작은 기준 시각, 끝은 해당 시점(시간 없으면 그날 23:59)
-    let end = new Date(d);
-    if (!hasTime) {
-      // "이번 주 안에", "이번달 안에", "올해 안에" → 그 기간의 마지막 날
-      if (c.weekOffset !== undefined && c.weekday === undefined) end.setDate(end.getDate() + 6);
-      else if (c.monthOffset !== undefined && c.monthPart === undefined && c.day === undefined)
-        end = new Date(end.getFullYear(), end.getMonth(), lastDayOfMonth(end.getFullYear(), end.getMonth()));
-      else if ((c.year !== undefined || c.yearOffset !== undefined) && c.month === undefined)
-        end = new Date(end.getFullYear(), 11, 31);
-      end.setHours(23, 59, 0, 0);
-    }
-    result.end = end;
-    result.date = new Date(ref);
+    // "~내내": 시작은 그 기간의 시작, 끝은 기간의 끝
+    result.end = hasTime ? new Date(d) : periodEnd(d, c);
+    if (c.isEnd) result.date = new Date(ref);
   }
   return result;
+}
+
+/** 날짜 표현이 가리키는 기간의 마지막 시각. "이번 주" → 일요일, "이번달" → 말일, "올해" → 12/31, 그 외는 그날 23:59 */
+function periodEnd(d: Date, c: Components): Date {
+  let end = new Date(d);
+  if (c.weekOffset !== undefined && c.weekday === undefined) end.setDate(end.getDate() + 6);
+  else if (c.monthOffset !== undefined && c.monthPart === undefined && c.day === undefined)
+    end = new Date(end.getFullYear(), end.getMonth(), lastDayOfMonth(end.getFullYear(), end.getMonth()));
+  else if ((c.year !== undefined || c.yearOffset !== undefined) && c.month === undefined && !c.sameDay)
+    end = new Date(end.getFullYear(), 11, 31);
+  end.setHours(23, 59, 0, 0);
+  return end;
 }
 
 function partDay(y: number, m0: number, part: NonNullable<Components['monthPart']>): number {
