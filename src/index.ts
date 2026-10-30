@@ -4,12 +4,13 @@ import { offset } from './parsers/offset.js';
 import { weekday } from './parsers/weekday.js';
 import { absoluteDate } from './parsers/absoluteDate.js';
 import { relativeMonth } from './parsers/relativeMonth.js';
+import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
 import { groupFragments, resolve } from './resolve.js';
 
 export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 
-const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, time];
+const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time];
 
 // "~까지" / "~부터" 접미 감지
 const UNTIL = /^\s*(까지|이내|안에)/;

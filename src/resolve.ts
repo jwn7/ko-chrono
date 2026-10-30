@@ -59,14 +59,16 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
   const hasTime = c.hour !== undefined || c.hourOffset !== undefined || c.minuteOffset !== undefined;
 
   // 1. 절대 날짜
-  if (c.year !== undefined || c.month !== undefined || c.day !== undefined) {
-    const y = c.year ?? ref.getFullYear();
-    const m0 = c.month !== undefined ? c.month - 1 : ref.getMonth();
-    let day = c.day ?? (c.month !== undefined ? 1 : ref.getDate());
+  const hasYear = c.year !== undefined || c.yearOffset !== undefined;
+  if (hasYear || c.month !== undefined || c.day !== undefined) {
+    const y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
+    // "작년", "내년"처럼 연도만 있으면 1월 1일
+    const m0 = c.month !== undefined ? c.month - 1 : hasYear ? 0 : ref.getMonth();
+    let day = c.day ?? (c.month !== undefined || hasYear ? 1 : ref.getDate());
     if (c.monthPart) day = partDay(y, m0, c.monthPart);
     d = new Date(y, m0, day);
     // 연도 미지정 + 이미 지난 날짜 → 내년으로 (월일만 있을 때)
-    if (c.year === undefined && c.month !== undefined && c.day !== undefined) {
+    if (!hasYear && c.month !== undefined && c.day !== undefined) {
       const cmp = new Date(y, m0, day, 23, 59);
       if (cmp < ref) d = new Date(y + 1, m0, day);
     }

@@ -102,6 +102,23 @@ describe('요일/날짜 + 시각 단어', () => {
   });
 });
 
+describe('연도 상대', () => {
+  it('올해 말', () => expect(p('올해 말')!.date).toEqual(d(2026, 12, 31)));
+  it('내년 초', () => expect(p('내년 초')!.date).toEqual(d(2027, 1, 1)));
+  it('작년', () => {
+    const r = p('작년에 갔던 곳');
+    expect(r!.date).toEqual(d(2025, 1, 1));
+    expect(r!.text).toBe('작년');
+  });
+  it('재작년', () => expect(p('재작년')!.date).toEqual(d(2024, 1, 1)));
+  it('내후년', () => expect(p('내후년')!.date).toEqual(d(2028, 1, 1)));
+  // 연도가 정해졌으므로 "지난 월일 → 내년" 규칙을 적용하지 않는다
+  it('올해 3월 1일', () => expect(p('올해 3월 1일')!.date).toEqual(d(2026, 3, 1)));
+  it('내년 3월 1일', () => expect(p('내년 3월 1일')!.date).toEqual(d(2027, 3, 1)));
+  it('작년 12월', () => expect(p('작년 12월')!.date).toEqual(d(2025, 12, 1)));
+  it('올해 말까지', () => expect(p('올해 말까지')!.end).toEqual(d(2026, 12, 31, 23, 59)));
+});
+
 describe('두 자리 연도', () => {
   // 00~69 → 20xx, 70~99 → 19xx
   it('26년 12월 1일', () => {

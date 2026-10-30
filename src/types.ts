@@ -22,6 +22,8 @@ export interface Components {
   weekOffset?: number;
   /** 0=일 … 6=토 (JS getDay 규약) */
   weekday?: number;
+  /** 연 단위 이동 (내년=+1). 지정되면 "지난 월일 → 내년" 규칙을 적용하지 않는다 */
+  yearOffset?: number;
   /** 월 단위 이동 (다음달=+1) */
   monthOffset?: number;
   /** 월 안의 위치: 초(1일)/중순(15일)/말(마지막날) */
