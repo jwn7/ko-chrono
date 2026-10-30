@@ -90,6 +90,68 @@ describe('지난 달 → 내년 (규칙 13)', () => {
   it('12월', () => expect(p('12월')!.date).toEqual(d(2026, 12, 1)));
 });
 
+describe('지난/다음 X요일', () => {
+  // "지난 금요일" = 오늘을 제외한 가장 가까운 과거의 금요일
+  it('지난 금요일 (오늘이 금요일)', () => expect(p('지난 금요일')!.date).toEqual(d(2026, 10, 23)));
+  it('지난 금요일 (토요일 기준 → 어제)', () =>
+    expect(parse('지난 금요일', { referenceDate: new Date(2026, 9, 31, 10) })!.date).toEqual(d(2026, 10, 30)));
+  it('저번 수욜', () => expect(p('저번 수욜')!.date).toEqual(d(2026, 10, 28)));
+  // "다음 금요일" = 오늘을 제외한 가장 가까운 미래의 금요일
+  it('다음 금요일 (오늘이 금요일 → 일주일 뒤)', () => expect(p('다음 금요일')!.date).toEqual(d(2026, 11, 6)));
+  it('다음 월요일', () => expect(p('다음 월요일')!.date).toEqual(d(2026, 11, 2)));
+});
+
+describe('괄호 요일 / 요일 범위', () => {
+  it('11/3(화) 14:00', () => {
+    const r = p('11/3(화) 14:00 킥오프');
+    expect(r!.date).toEqual(d(2026, 11, 3, 14));
+    expect(r!.text).toBe('11/3(화) 14:00');
+  });
+  it('11/3(수) (요일 불일치 → null)', () => expect(p('11/3(수)')).toBeNull());
+  it('월~금', () => {
+    const r = p('월~금 출근');
+    expect(r!.date).toEqual(d(2026, 11, 2));
+    expect(r!.end).toEqual(d(2026, 11, 6, 23, 59));
+  });
+  it('화~목요일', () => expect(p('화~목요일')!.end).toEqual(d(2026, 11, 5, 23, 59)));
+});
+
+describe('시각 단어 추가', () => {
+  it('오전 중으로', () => {
+    const r = p('오전 중으로 보내드릴게요');
+    expect(r!.end).toEqual(d(2026, 10, 31, 12));
+    expect(r!.text).toBe('오전 중으로');
+  });
+  it('내일 오후 중에', () => expect(p('내일 오후 중에')!.end).toEqual(d(2026, 10, 31, 18)));
+  it('퇴근 전까지', () => expect(p('퇴근 전까지')!.end).toEqual(d(2026, 10, 30, 18)));
+  it('퇴근 후에 보자', () => expect(p('퇴근 후에 보자')!.date).toEqual(d(2026, 10, 30, 18)));
+  it('토요일 낮에', () => expect(p('토요일 낮에')!.date).toEqual(d(2026, 10, 31, 12)));
+  it('온도가 낮다 (잡지 않음)', () => expect(p('온도가 낮다')).toBeNull());
+  it('5시 10분 전', () => expect(p('5시 10분 전에 모이자')!.date).toEqual(d(2026, 10, 30, 16, 50)));
+  it('30분 내로', () => expect(p('30분 내로')!.end).toEqual(d(2026, 10, 30, 14, 30)));
+});
+
+describe('고유어 일수 / 년 / 이맘때', () => {
+  it('이틀 뒤', () => expect(p('이틀 뒤')!.date).toEqual(d(2026, 11, 1)));
+  it('사흘 전', () => expect(p('사흘 전')!.date).toEqual(d(2026, 10, 27)));
+  it('닷새 후', () => expect(p('닷새 후')!.date).toEqual(d(2026, 11, 4)));
+  it('1년 뒤', () => expect(p('1년 뒤')!.date).toEqual(d(2027, 10, 30)));
+  it('2년 전', () => expect(p('2년 전')!.date).toEqual(d(2024, 10, 30)));
+  it('1년 뒤 (2월 29일 기준 → 2월 28일)', () =>
+    expect(parse('1년 뒤', { referenceDate: new Date(2028, 1, 29, 10) })!.date).toEqual(d(2029, 2, 28)));
+  it('내년 이맘때', () => expect(p('내년 이맘때')!.date).toEqual(d(2027, 10, 30)));
+  it('다음달 이맘때', () => expect(p('다음달 이맘때')!.date).toEqual(d(2026, 11, 30)));
+  it('다음주 이맘때', () => expect(p('다음주 이맘때')!.date).toEqual(d(2026, 11, 6)));
+  it('연말 / 연초 / 월초 / 월말', () => {
+    expect(p('연말')!.date).toEqual(d(2026, 12, 31));
+    expect(p('연초')!.date).toEqual(d(2027, 1, 1));
+    expect(p('월초')!.date).toEqual(d(2026, 10, 1));
+    expect(p('월말')!.date).toEqual(d(2026, 10, 31));
+  });
+  it('5일장 (잡지 않음)', () => expect(p('5일장')).toBeNull());
+  it('3일째 (잡지 않음)', () => expect(p('3일째 연속')).toBeNull());
+});
+
 describe('기간 표현은 날짜가 아니다', () => {
   it('5일간 (잡지 않음)', () => expect(p('5일간 여행')).toBeNull());
   it('3박 4일 (잡지 않음)', () => expect(p('3박 4일')).toBeNull());

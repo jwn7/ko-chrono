@@ -13,6 +13,11 @@ function lastDayOfMonth(y: number, m0: number): number {
   return new Date(y, m0 + 1, 0).getDate();
 }
 
+/** 기준일의 "일"을 유지하되 그 달에 없으면 말일로 (2월 29일 + 1년 → 2월 28일) */
+function sameDayIn(y: number, m0: number, day: number): Date {
+  return new Date(y, m0, Math.min(day, lastDayOfMonth(y, m0)));
+}
+
 // 조각 사이에 와도 같은 표현으로 묶는 것: "내일 오후", "내일은 오후", "토요일쯤 저녁", "모레도 2시"
 // "이나/아니면/랑"은 다른 선택지일 수 있어 묶지 않는다.
 const JOINER = /^(?:\s|,|에|의|엔|은|는|도|쯤|경|께|부터)*$/;
@@ -116,16 +121,17 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
   const hasYear = c.year !== undefined || c.yearOffset !== undefined;
   if (hasYear || c.month !== undefined || c.day !== undefined) {
     let y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
-    // "작년", "내년"처럼 연도만 있으면 1월 1일
-    const m0 = c.month !== undefined ? c.month - 1 : hasYear ? 0 : ref.getMonth();
+    // "작년", "내년"처럼 연도만 있으면 1월 1일. "내년 이맘때", "1년 뒤"는 오늘 날짜 유지
+    const m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();
     // 연도 미지정 + 이미 지났으면 내년으로.
     // 월일("3월 1일")은 그 날이, 월("3월", "2월 말")은 그 달이 통째로 지났을 때.
     if (!hasYear && c.month !== undefined) {
       const lastDay = c.day ?? lastDayOfMonth(y, m0);
       if (new Date(y, m0, lastDay, 23, 59) < ref) y += 1;
     }
-    let day = c.day ?? (c.month !== undefined || hasYear ? 1 : ref.getDate());
+    let day = c.day ?? (c.month !== undefined || (hasYear && !c.sameDay) ? 1 : ref.getDate());
     if (c.monthPart) day = partDay(y, m0, c.monthPart);
+    if (c.sameDay) day = Math.min(day, lastDayOfMonth(y, m0));
     // 2월 30일, 11월 31일처럼 없는 날짜는 다음 달로 넘기지 않고 버린다
     if (day > lastDayOfMonth(y, m0)) return null;
     d = new Date(y, m0, day);
@@ -138,7 +144,8 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     const m0 = ref.getMonth() + c.monthOffset;
     const day = c.monthPart ? partDay(y, m0, c.monthPart) : c.day ?? 1;
     if (day > lastDayOfMonth(y, m0)) return null;
-    d = new Date(y, m0, day);
+    // "다음달 이맘때" → 오늘 날짜 유지
+    d = c.sameDay ? sameDayIn(y, m0, ref.getDate()) : new Date(y, m0, day);
     dateSet = true;
   }
 
@@ -147,7 +154,12 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     // "11월 5일 목요일": 날짜가 우선. 요일이 안 맞으면 어느 쪽이 맞는지 모르므로 null
     if (d.getDay() !== c.weekday) return null;
   } else if (c.weekOffset !== undefined || c.weekday !== undefined) {
-    if (c.weekOffset !== undefined) {
+    if (c.weekOffset !== undefined && c.sameDay) {
+      // "다음주 이맘때" → 7일 뒤
+      d = new Date(ref);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + c.weekOffset * 7);
+    } else if (c.weekOffset !== undefined) {
       const sow = startOfWeek(ref, opts.weekStart);
       sow.setDate(sow.getDate() + c.weekOffset * 7);
       if (c.weekday !== undefined) {
@@ -161,7 +173,10 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
       today.setHours(0, 0, 0, 0);
       const dow = today.getDay();
       // "주말" 단독인데 오늘이 일요일이면 오늘
-      const diff = c.weekend && dow === 0 ? 0 : (c.weekday! - dow + 7) % 7;
+      let diff = c.weekend && dow === 0 ? 0 : (c.weekday! - dow + 7) % 7;
+      // "다음 금요일"은 오늘 제외 미래, "지난 금요일"은 오늘 제외 과거
+      if (c.weekdayDir === 'next' && diff === 0) diff = 7;
+      if (c.weekdayDir === 'past') diff = diff === 0 ? -7 : diff - 7;
       today.setDate(today.getDate() + diff);
       d = today;
     }

@@ -4,6 +4,11 @@ import { parseKoreanNumber } from '../util/number.js';
 // "오후 3시", "3시 반", "오전 10시 30분", "새벽 2시", "저녁 7시", "낮 12시", "15시", "7시30", "3시 정각"
 const CLOCK =
   /(오전|오후|새벽|아침|저녁|밤|낮|정오)?\s*(\d{1,2}|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두)\s*시\s*(?:(반)|(\d{1,2})\s*분|(\d{2})(?![\d가-힣])|정각)?/g;
+// "5시 10분 전" → 4:50
+const BEFORE =
+  /(오전|오후|새벽|아침|저녁|밤|낮)?\s*(\d{1,2}|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두)\s*시\s*(\d{1,2})\s*분\s*전(?=[\s,에까]|$)/g;
+// "오전 중으로", "오후 중에" → 그 시간대의 끝(12시/18시)까지
+const HALF_DAY = /(오전|오후)\s*중(?:으로|에는|에)?/g;
 // "3pm", "9 AM", "12pm"
 const AMPM = /(?<![\d:])(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?![a-z])/gi;
 // "3~5시", "오후 3~5시" → "오후 3" + "5시" 두 조각 (index.ts가 "~"로 구간을 합친다)
@@ -11,9 +16,9 @@ const SHORT_RANGE =
   /(오전|오후|새벽|아침|저녁|밤|낮)?\s*(\d{1,2}|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두)\s*~\s*((\d{1,2}|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두)\s*시)/g;
 // "15:30", "3:00", "오후 3:30"
 const COLON = /(?:(오전|오후|새벽|아침|저녁|밤|낮)\s*)?(?<!\d)(\d{1,2}):(\d{2})(?!\d)/g;
-// 단독 시간 단어
-const WORD = /(정오|자정|점심|아침|저녁|밤)(?!\s*\d)/g;
-const WORD_HOUR: Record<string, number> = { 정오: 12, 자정: 0, 점심: 12, 아침: 8, 저녁: 19, 밤: 21 };
+// 단독 시간 단어. "낮"은 "낮다"와 겹쳐서 뒤에 공백/조사가 올 때만
+const WORD = /(정오|자정|점심|아침|저녁|밤|퇴근|낮(?=[\s에,]|$))(?!\s*\d)/g;
+const WORD_HOUR: Record<string, number> = { 정오: 12, 자정: 0, 점심: 12, 아침: 8, 저녁: 19, 밤: 21, 퇴근: 18, 낮: 12 };
 
 function applyMeridiem(prefix: string | undefined, hour: number): number {
   if (hour === 24) return 0;
@@ -56,6 +61,20 @@ export const time: Parser = (text) => {
     if (m[1]) start.meridiem = true;
     out.push({ text: startText, index: m.index!, components: start });
     out.push({ text: m[3], index: bIndex, components: { hour: b === 24 ? 0 : b, minute: 0 } });
+  }
+  for (const m of text.matchAll(BEFORE)) {
+    const raw = parseKoreanNumber(m[2]);
+    if (raw == null || raw > 24 || +m[3] > 59) continue;
+    if (!take(m.index!, m[0].length)) continue;
+    const total = applyMeridiem(m[1], raw) * 60 - +m[3];
+    const c: Fragment['components'] = { hour: Math.floor(total / 60), minute: total % 60 };
+    if (m[1]) c.meridiem = true;
+    out.push({ text: m[0], index: m.index!, components: c });
+  }
+  for (const m of text.matchAll(HALF_DAY)) {
+    if (!take(m.index!, m[0].length)) continue;
+    const hour = m[1] === '오전' ? 12 : 18;
+    out.push({ text: m[0], index: m.index!, components: { hour, minute: 0, meridiem: true, isEnd: true } });
   }
   for (const m of text.matchAll(AMPM)) {
     const raw = +m[1];
