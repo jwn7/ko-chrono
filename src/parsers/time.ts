@@ -49,7 +49,9 @@ export const time: Parser = (text) => {
     let minute = 0;
     if (m[3] === '반') minute = 30;
     else if (m[4]) minute = +m[4];
-    out.push({ text: m[0], index: m.index!, components: { hour, minute } });
+    const c: Fragment['components'] = { hour, minute };
+    if (raw === 24 || (m[1] === '밤' && raw === 12)) c.midnight = true;
+    out.push({ text: m[0], index: m.index!, components: c });
   }
   for (const m of text.matchAll(COLON)) {
     if (!take(m.index!, m[0].length)) continue;
@@ -59,7 +61,9 @@ export const time: Parser = (text) => {
   }
   for (const m of text.matchAll(WORD)) {
     if (!take(m.index!, m[0].length)) continue;
-    out.push({ text: m[0], index: m.index!, components: { hour: WORD_HOUR[m[1]], minute: 0 } });
+    const c: Fragment['components'] = { hour: WORD_HOUR[m[1]], minute: 0 };
+    if (m[1] === '자정') c.midnight = true;
+    out.push({ text: m[0], index: m.index!, components: c });
   }
   return out;
 };

@@ -131,6 +131,8 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
       if (d < ref) d.setDate(d.getDate() + 1);
     } else {
       d.setHours(c.hour, c.minute ?? 0, 0, 0);
+      // "내일 자정" = 내일이 끝나는 시점
+      if (c.midnight) d.setDate(d.getDate() + 1);
     }
   } else if (c.hourOffset !== undefined || c.minuteOffset !== undefined) {
     d = new Date(ref);

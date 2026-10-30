@@ -243,8 +243,15 @@ describe('시각', () => {
   it('오후 12시 30분', () => expect(p('내일 오후 12시 30분')!.date).toEqual(d(2026, 10, 31, 12, 30)));
   it('점심/정오/자정', () => {
     expect(p('모레 점심')!.date).toEqual(d(2026, 11, 1, 12));
-    expect(p('내일 자정')!.date).toEqual(d(2026, 10, 31, 0));
+    // 규칙 12: 날짜 + 자정 = 그 날의 끝 (다음날 00:00)
+    expect(p('내일 자정')!.date).toEqual(d(2026, 11, 1, 0));
   });
+  it('자정', () => expect(p('자정')!.date).toEqual(d(2026, 10, 31, 0)));
+  it('오늘 자정', () => expect(p('오늘 자정')!.date).toEqual(d(2026, 10, 31, 0)));
+  it('내일 24시', () => expect(p('내일 24시')!.date).toEqual(d(2026, 11, 1, 0)));
+  it('내일 밤 12시', () => expect(p('내일 밤 12시')!.date).toEqual(d(2026, 11, 1, 0)));
+  it('내일 자정까지', () => expect(p('내일 자정까지')!.end).toEqual(d(2026, 11, 1, 0)));
+  it('내일 오전 12시', () => expect(p('내일 오전 12시')!.date).toEqual(d(2026, 10, 31, 0)));
 });
 
 describe('구간', () => {
