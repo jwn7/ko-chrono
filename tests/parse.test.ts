@@ -52,6 +52,19 @@ describe('요일', () => {
   });
 });
 
+describe('주말', () => {
+  // 주말 = 그 주의 토요일
+  it('이번 주말', () => {
+    const r = p('이번 주말');
+    expect(r!.date).toEqual(d(2026, 10, 31));
+    expect(r!.text).toBe('이번 주말');
+  });
+  it('다음 주말', () => expect(p('다음 주말')!.date).toEqual(d(2026, 11, 7)));
+  it('다음주말 저녁', () => expect(p('다음주말 저녁')!.date).toEqual(d(2026, 11, 7, 19)));
+  it('지난 주말', () => expect(p('지난 주말')!.date).toEqual(d(2026, 10, 24)));
+  it('이번 주말까지', () => expect(p('이번 주말까지')!.end).toEqual(d(2026, 10, 31, 23, 59)));
+});
+
 describe('절대 날짜', () => {
   it('11월 5일', () => expect(p('11월 5일')!.date).toEqual(d(2026, 11, 5)));
   it('2027년 1월 2일', () => expect(p('2027년 1월 2일')!.date).toEqual(d(2027, 1, 2)));
