@@ -41,8 +41,43 @@ export function groupFragments(fragments: Fragment[], text: string): Fragment[][
   return groups;
 }
 
-function merge(list: Components[]): Components {
+export function merge(list: Components[]): Components {
   return Object.assign({}, ...list);
+}
+
+const DATE_KEYS: (keyof Components)[] = [
+  'year', 'yearOffset', 'month', 'day', 'dayOffset', 'weekOffset', 'weekday', 'monthOffset', 'monthPart',
+];
+
+/** 날짜 정보 없이 시각만 있는 조각인지 ("5시까지", "17:00") */
+export function isTimeOnly(c: Components): boolean {
+  return (
+    c.hour !== undefined &&
+    c.hourOffset === undefined &&
+    c.minuteOffset === undefined &&
+    !DATE_KEYS.some((k) => c[k] !== undefined)
+  );
+}
+
+/** 날짜 정보가 "N일"뿐인 조각인지 ("3일까지") */
+export function isDayOnly(c: Components): boolean {
+  return c.day !== undefined && DATE_KEYS.every((k) => k === 'day' || c[k] === undefined);
+}
+
+/**
+ * 시 범위의 끝을 시작에 맞춘다 (규칙 16).
+ * 끝을 시작과 같은 날에 놓고, 시작보다 이르면 오전/오후를 이어받거나(+12h) 다음날로 넘긴다.
+ * "오후 3~5시" → 17시, "오후 11시부터 1시까지" → 다음날 1시, "오후 3시부터 오전 1시까지" → 다음날 1시
+ */
+export function alignEnd(start: Date, end: Components): Date {
+  const hour = end.hour!;
+  const r = new Date(start);
+  r.setHours(hour, end.minute ?? 0, 0, 0);
+  if (r <= start) {
+    if (!end.meridiem && hour < 12 && hour + 12 > start.getHours()) r.setHours(hour + 12);
+    else r.setDate(r.getDate() + 1);
+  }
+  return r;
 }
 
 /** 같은 종류의 정보가 두 번 나오면 다른 날짜 표현으로 본다 (예: "3일 5일"). */
@@ -52,9 +87,7 @@ function hasConflict(a: Components, b: Components): boolean {
   const both = (keys: (keyof Components)[]) =>
     keys.some((k) => a[k] !== undefined) && keys.some((k) => b[k] !== undefined);
   // 규칙 15: "내일" + "30분 후"는 서로 다른 표현
-  const dateKeys: (keyof Components)[] = [
-    'year', 'yearOffset', 'month', 'day', 'dayOffset', 'weekOffset', 'weekday', 'monthOffset', 'monthPart',
-  ];
+  const dateKeys = DATE_KEYS;
   const relKeys: (keyof Components)[] = ['hourOffset', 'minuteOffset'];
   const has = (x: Components, keys: (keyof Components)[]) => keys.some((k) => x[k] !== undefined);
   const dateVsRel = (has(a, dateKeys) && has(b, relKeys)) || (has(a, relKeys) && has(b, dateKeys));

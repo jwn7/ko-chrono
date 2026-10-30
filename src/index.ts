@@ -1,4 +1,4 @@
-import type { Fragment, ParseOptions, ParseResult } from './types.js';
+import type { Components, Fragment, ParseOptions, ParseResult } from './types.js';
 import { relativeDay } from './parsers/relativeDay.js';
 import { offset } from './parsers/offset.js';
 import { weekday } from './parsers/weekday.js';
@@ -6,15 +6,15 @@ import { absoluteDate } from './parsers/absoluteDate.js';
 import { relativeMonth } from './parsers/relativeMonth.js';
 import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
-import { groupFragments, resolve } from './resolve.js';
+import { alignEnd, groupFragments, isDayOnly, isTimeOnly, merge, resolve } from './resolve.js';
 
 export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time];
 
-// "~까지" / "~부터" 접미 감지
+// "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
 const UNTIL = /^\s*(까지|이내|안에)/;
-const FROM = /^\s*부터/;
+const FROM = /^\s*(부터|~)\s*/;
 
 function withDefaults(opts?: ParseOptions): Required<ParseOptions> {
   return {
@@ -52,6 +52,7 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
   const frags = dedupe(PARSERS.flatMap((p) => p(text)));
   const groups = groupFragments(frags, text);
   const results: ParseResult[] = [];
+  const comps: Components[] = [];
 
   for (const g of groups) {
     const last = g[g.length - 1];
@@ -68,15 +69,32 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
     r.index = g[0].index;
     r.text = text.slice(g[0].index, end).trim();
     results.push(r);
+    comps.push(merge(g.map((f) => f.components)));
   }
 
-  // "A부터 B까지" → 하나의 구간으로 합침
+  // "A부터 B까지", "A~B" → 하나의 구간으로 합침
   const merged: ParseResult[] = [];
   for (let i = 0; i < results.length; i++) {
     const a = results[i], b = results[i + 1];
-    const aTail = text.slice(a.index + a.text.length);
-    if (b && FROM.test(aTail) && b.end) {
-      merged.push({ ...a, end: b.end, text: text.slice(a.index, b.index + b.text.length).trim() });
+    const from = FROM.exec(text.slice(a.index + a.text.length));
+    // "~"는 바로 뒤에 B가 붙어 있을 때만. "부터"는 B가 "까지"로 끝날 때만
+    const tilde = from?.[1] === '~' && b?.index === a.index + a.text.length + from[0].length;
+    if (b && from && (b.end || tilde)) {
+      const bc = comps[i + 1];
+      let end = b.end ?? b.date;
+      if (isTimeOnly(bc)) {
+        end = alignEnd(a.date, bc);
+      } else {
+        // "11월 1일부터 3일까지": 끝에 일만 있으면 시작의 연월을 이어받는다
+        // ("11월 28일부터 2일까지"처럼 시작보다 이르면 다음 달)
+        if (isDayOnly(bc)) {
+          const y = a.date.getFullYear(), m0 = a.date.getMonth();
+          end = new Date(y, m0, bc.day!, end.getHours(), end.getMinutes());
+          if (end < a.date) end = new Date(y, m0 + 1, bc.day!, end.getHours(), end.getMinutes());
+        }
+        if (!b.end && !b.hasTime) end = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59);
+      }
+      merged.push({ ...a, end, text: text.slice(a.index, b.index + b.text.length).trim() });
       i++;
     } else {
       merged.push(a);

@@ -30,6 +30,8 @@ export interface Components {
   monthOffset?: number;
   /** 월 안의 위치: 초(1일)/중순(15일)/말(마지막날) */
   monthPart?: 'start' | 'middle' | 'end';
+  /** 오전/오후 등이 명시됨 (15:30 같은 24시간 표기 포함). 시 범위의 끝을 맞출 때 쓴다 */
+  meridiem?: boolean;
   /** "자정", "24시", "밤 12시": 날짜가 있으면 그 날의 끝(다음날 00:00) */
   midnight?: boolean;
   /** 시/분 단위 상대 이동 */
