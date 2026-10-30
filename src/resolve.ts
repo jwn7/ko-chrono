@@ -149,9 +149,21 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     dateSet = true;
   }
 
-  // 3. 주 + 요일
-  if (c.weekday !== undefined && c.weekOffset === undefined && c.day !== undefined) {
-    // "11월 5일 목요일": 날짜가 우선. 요일이 안 맞으면 어느 쪽이 맞는지 모르므로 null
+  // 3. N째 주 (규칙 22): 달은 1·2단계에서 정해진 달, 없으면 기준 달
+  if (c.nthWeek !== undefined) {
+    const y = dateSet ? d.getFullYear() : ref.getFullYear();
+    const m0 = dateSet ? d.getMonth() : ref.getMonth();
+    const target = c.weekday ?? (opts.weekStart === 'monday' ? 1 : 0);
+    const last = lastDayOfMonth(y, m0);
+    let day = 1 + ((target - new Date(y, m0, 1).getDay() + 7) % 7);
+    if (c.nthWeek > 0) day += (c.nthWeek - 1) * 7;
+    else while (day + 7 <= last) day += 7;
+    // "11월 다섯째 주 토요일"처럼 없는 날짜는 null
+    if (day > last) return null;
+    d = new Date(y, m0, day);
+    dateSet = true;
+  } else if (c.weekday !== undefined && c.weekOffset === undefined && c.day !== undefined) {
+    // 4. 주 + 요일. "11월 5일 목요일": 날짜가 우선. 요일이 안 맞으면 어느 쪽이 맞는지 모르므로 null
     if (d.getDay() !== c.weekday) return null;
   } else if (c.weekOffset !== undefined || c.weekday !== undefined) {
     if (c.weekOffset !== undefined && c.sameDay) {
@@ -183,7 +195,7 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     dateSet = true;
   }
 
-  // 4. 일 단위 상대 이동
+  // 5. 일 단위 상대 이동
   if (c.dayOffset !== undefined) {
     if (!dateSet) {
       d = new Date(ref);
@@ -193,7 +205,7 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
     dateSet = true;
   }
 
-  // 5. 시각
+  // 6. 시각
   if (c.hour !== undefined) {
     // 규칙 20: 오전/오후 없는 1~6시는 오후 ("3시에 보자" → 15시). 7~11시는 그대로.
     const hour = !c.meridiem && c.hour >= 1 && c.hour <= 6 ? c.hour + 12 : c.hour;
@@ -223,6 +235,22 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
   // text는 parseAll()에서 원문 slice로 채운다. _end는 그때 쓰는 내부 값.
   const result: ParseResult = { date: d, text: '', index: first.index, hasTime };
   (result as ParseResult & { _end: number })._end = last.index + last.text.length;
+
+  // "오늘부터 3일간", "3시부터 2시간 동안": 시작일을 포함한 기간의 끝
+  if (c.durationDays !== undefined || c.durationMonths !== undefined || c.durationMinutes !== undefined) {
+    if (!dateSet && !hasTime) return null;
+    const end = new Date(d);
+    if (c.durationMinutes !== undefined) {
+      end.setMinutes(end.getMinutes() + c.durationMinutes);
+    } else {
+      if (c.durationMonths !== undefined) end.setMonth(end.getMonth() + c.durationMonths);
+      if (c.durationDays !== undefined) end.setDate(end.getDate() + c.durationDays);
+      end.setDate(end.getDate() - 1);
+      end.setHours(23, 59, 0, 0);
+    }
+    result.end = end;
+    return result;
+  }
 
   if (c.isEnd) {
     // "~까지", "~이내": 시작은 기준 시각, 끝은 해당 시점(시간 없으면 그날 23:59)

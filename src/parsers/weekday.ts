@@ -13,6 +13,13 @@ const WEEKEND = new RegExp(`(${WEEK_WORD})\\s*주말`, 'g');
 const RANGE = new RegExp(`(?<![\\d가-힣])(${DAY})\\s*~\\s*((${DAY})(?:요일|욜)?)(?![가-힣])`, 'g');
 // "11/3(화)", "11월 5일 (목)" 뒤에 붙는 요일 표시
 const PAREN = new RegExp(`\\((${DAY})\\)`, 'g');
+// "11월 첫째 주 월요일", "둘째 주 수요일", "마지막 주 금요일", "12월 셋째 주"
+// 요일 글자만 쓸 때("첫째 주 월")는 뒤에 한글이 없어야 한다 ("둘째 주 일정"의 "일"은 요일이 아님)
+const NTH = new RegExp(
+  `(?:(\\d{1,2})\\s*월\\s*)?(첫째|첫|둘째|셋째|넷째|다섯째|마지막)\\s*주(?:\\s*(${DAY})(?:요일|욜|(?![가-힣])))?`,
+  'g',
+);
+const NTH_NUM: Record<string, number> = { 첫째: 1, 첫: 1, 둘째: 2, 셋째: 3, 넷째: 4, 다섯째: 5, 마지막: -1 };
 // "지난 금요일" = 오늘 제외 가장 가까운 과거, "다음 금요일" = 오늘 제외 가장 가까운 미래
 const DIR = new RegExp(`(지난|저번|다음)\\s*(${DAY})(?:요일|욜)`, 'g');
 // "주말에 보자" ("이번 주말"은 위 WEEKEND가 먼저 잡는다)
@@ -30,6 +37,17 @@ export const weekday: Parser = (text) => {
   const taken: Array<[number, number]> = [];
   const overlaps = (i: number, len: number) => taken.some(([s, e]) => i < e && i + len > s);
 
+  for (const m of text.matchAll(NTH)) {
+    const c: Fragment['components'] = { nthWeek: NTH_NUM[m[2]] };
+    if (m[1]) {
+      const month = +m[1];
+      if (month < 1 || month > 12) continue;
+      c.month = month;
+    }
+    if (m[3]) c.weekday = WEEKDAY[m[3]];
+    out.push({ text: m[0], index: m.index!, components: c });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
   for (const m of text.matchAll(RANGE)) {
     const bIndex = m.index! + m[0].length - m[2].length;
     out.push({ text: m[1], index: m.index!, components: { weekday: WEEKDAY[m[1]] } });

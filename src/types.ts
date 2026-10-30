@@ -41,6 +41,12 @@ export interface Components {
   /** 시/분 단위 상대 이동 */
   hourOffset?: number;
   minuteOffset?: number;
+  /** "3일간", "2주 동안", "3박 4일": 앞의 날짜부터 이어지는 기간. 날짜 없이 단독이면 null */
+  durationDays?: number;
+  durationMonths?: number;
+  durationMinutes?: number;
+  /** "N째 주": 1~5, 마지막은 -1. weekday가 있으면 그 달의 N번째 그 요일, 없으면 N번째 주 시작일 */
+  nthWeek?: number;
   /** 이 조각이 "~까지" 종료점인지 */
   isEnd?: boolean;
   /** 이 조각이 "~부터" 시작점인지 */

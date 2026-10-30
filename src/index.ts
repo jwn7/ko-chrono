@@ -6,11 +6,12 @@ import { absoluteDate } from './parsers/absoluteDate.js';
 import { relativeMonth } from './parsers/relativeMonth.js';
 import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
+import { duration } from './parsers/duration.js';
 import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
 
 export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 
-const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time];
+const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration];
 
 // "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
 const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로)/;
