@@ -1,0 +1,28 @@
+{
+  "name": "ko-chrono",
+  "version": "0.1.0",
+  "description": "한국어 자연어 날짜/시간 파서 — '다음주 화요일 오후 3시' → Date",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "playground": "npm run build && npx serve playground"
+  },
+  "keywords": ["korean", "한국어", "date", "parser", "natural-language", "날짜", "nlp", "chrono"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

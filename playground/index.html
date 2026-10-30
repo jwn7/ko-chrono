@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ko-chrono playground</title>
+<style>
+  body { font-family: -apple-system, "Pretendard", system-ui, sans-serif; max-width: 720px; margin: 48px auto; padding: 0 20px; color: #1a1a1a; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: #666; margin-top: 0; }
+  textarea { width: 100%; font-size: 18px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+  .ref { font-size: 13px; color: #666; margin: 8px 0 16px; }
+  .ref input { font-size: 13px; }
+  .result { background: #f6f6f6; border-radius: 8px; padding: 14px; margin-top: 8px; }
+  .result b { font-size: 18px; }
+  .muted { color: #888; }
+  .chips button { margin: 4px 4px 0 0; padding: 4px 10px; border: 1px solid #ddd; background: #fff; border-radius: 999px; cursor: pointer; font-size: 13px; }
+  pre { font-size: 12px; color: #444; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>ko-chrono</h1>
+<p class="sub">한국어 문장에서 날짜/시간을 뽑아냅니다. 서버 없음, 전부 브라우저에서.</p>
+
+<textarea id="input" rows="2" placeholder="예: 다음주 화요일 오후 3시에 강남에서 볼까?"></textarea>
+<div class="ref">기준 시각 <input type="datetime-local" id="ref" /> (비우면 지금)</div>
+
+<div class="chips" id="chips"></div>
+<div id="out"></div>
+
+<script type="module">
+  import { parseAll } from '../dist/index.js';
+
+  const examples = [
+    '다음주 화요일 오후 3시', '모레 점심', '3일 뒤', '이번달 말까지 제출',
+    '11/5 10시 반', '그럼 다음주 수요일 저녁 7시에 강남에서 볼까?',
+    '11월 1일부터 11월 3일까지 휴가', '내일 10시 아니면 모레 2시',
+  ];
+  const $ = (id) => document.getElementById(id);
+  const fmt = (d) => d.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+
+  for (const ex of examples) {
+    const b = document.createElement('button');
+    b.textContent = ex;
+    b.onclick = () => { $('input').value = ex; run(); };
+    $('chips').appendChild(b);
+  }
+
+  function run() {
+    const text = $('input').value;
+    const refVal = $('ref').value;
+    const opts = refVal ? { referenceDate: new Date(refVal) } : {};
+    const results = parseAll(text, opts);
+    if (!text.trim()) { $('out').innerHTML = ''; return; }
+    if (!results.length) { $('out').innerHTML = '<div class="result muted">날짜 표현을 찾지 못했어요</div>'; return; }
+    $('out').innerHTML = results.map(r => `
+      <div class="result">
+        <b>${fmt(r.date)}</b>${r.end ? ` → <b>${fmt(r.end)}</b>` : ''}
+        <div class="muted">"${r.text}" (index ${r.index}${r.hasTime ? '' : ', 시간 없음'})</div>
+        <pre>${JSON.stringify(r, null, 2)}</pre>
+      </div>`).join('');
+  }
+  $('input').addEventListener('input', run);
+  $('ref').addEventListener('input', run);
+</script>
+</body>
+</html>
