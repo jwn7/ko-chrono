@@ -65,19 +65,20 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
   // 1. 절대 날짜
   const hasYear = c.year !== undefined || c.yearOffset !== undefined;
   if (hasYear || c.month !== undefined || c.day !== undefined) {
-    const y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
+    let y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
     // "작년", "내년"처럼 연도만 있으면 1월 1일
     const m0 = c.month !== undefined ? c.month - 1 : hasYear ? 0 : ref.getMonth();
+    // 연도 미지정 + 이미 지났으면 내년으로.
+    // 월일("3월 1일")은 그 날이, 월("3월", "2월 말")은 그 달이 통째로 지났을 때.
+    if (!hasYear && c.month !== undefined) {
+      const lastDay = c.day ?? lastDayOfMonth(y, m0);
+      if (new Date(y, m0, lastDay, 23, 59) < ref) y += 1;
+    }
     let day = c.day ?? (c.month !== undefined || hasYear ? 1 : ref.getDate());
     if (c.monthPart) day = partDay(y, m0, c.monthPart);
     // 2월 30일, 11월 31일처럼 없는 날짜는 다음 달로 넘기지 않고 버린다
     if (day > lastDayOfMonth(y, m0)) return null;
     d = new Date(y, m0, day);
-    // 연도 미지정 + 이미 지난 날짜 → 내년으로 (월일만 있을 때)
-    if (!hasYear && c.month !== undefined && c.day !== undefined) {
-      const cmp = new Date(y, m0, day, 23, 59);
-      if (cmp < ref) d = new Date(y + 1, m0, day);
-    }
     dateSet = true;
   }
 
@@ -105,7 +106,9 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
       // 요일 단독: 오늘 포함, 가장 가까운 미래의 그 요일
       const today = new Date(ref);
       today.setHours(0, 0, 0, 0);
-      const diff = (c.weekday! - today.getDay() + 7) % 7;
+      const dow = today.getDay();
+      // "주말" 단독인데 오늘이 일요일이면 오늘
+      const diff = c.weekend && dow === 0 ? 0 : (c.weekday! - dow + 7) % 7;
       today.setDate(today.getDate() + diff);
       d = today;
     }

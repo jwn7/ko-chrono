@@ -71,6 +71,29 @@ describe('주말', () => {
   it('다음주말 저녁', () => expect(p('다음주말 저녁')!.date).toEqual(d(2026, 11, 7, 19)));
   it('지난 주말', () => expect(p('지난 주말')!.date).toEqual(d(2026, 10, 24)));
   it('이번 주말까지', () => expect(p('이번 주말까지')!.end).toEqual(d(2026, 10, 31, 23, 59)));
+  // 규칙 11: 단독 "주말"은 다가오는 토요일 (오늘이 토/일이면 오늘)
+  it('주말에 보자', () => {
+    const r = p('주말에 보자');
+    expect(r!.date).toEqual(d(2026, 10, 31));
+    expect(r!.text).toBe('주말');
+  });
+  it('평일에만 가능 (잡지 않음)', () => expect(p('평일에만 가능')).toBeNull());
+});
+
+describe('지난 달 → 내년 (규칙 13)', () => {
+  it('2월 말', () => expect(p('2월 말')!.date).toEqual(d(2027, 2, 28)));
+  it('3월', () => expect(p('3월에 이사')!.date).toEqual(d(2027, 3, 1)));
+  it('9월 말', () => expect(p('9월 말')!.date).toEqual(d(2027, 9, 30)));
+  // 이번 달은 아직 안 끝났으므로 올해
+  it('10월', () => expect(p('10월')!.date).toEqual(d(2026, 10, 1)));
+  it('10월 초', () => expect(p('10월 초')!.date).toEqual(d(2026, 10, 1)));
+  it('12월', () => expect(p('12월')!.date).toEqual(d(2026, 12, 1)));
+});
+
+describe('날짜가 명시된 지난 시각 (규칙 14)', () => {
+  it('오늘 아침', () => expect(p('오늘 아침')!.date).toEqual(d(2026, 10, 30, 8)));
+  it('금요일 아침', () => expect(p('금요일 아침')!.date).toEqual(d(2026, 10, 30, 8)));
+  it('오늘 오전 10시', () => expect(p('오늘 오전 10시')!.date).toEqual(d(2026, 10, 30, 10)));
 });
 
 describe('절대 날짜', () => {

@@ -7,6 +7,8 @@ const WEEK_WORDS: Record<string, number> = {
 
 // "이번 주말", "다음주말", "지난 주말" → 그 주의 토요일
 const WEEKEND = /(지지난|저저번|지난|저번|이번|다다음|다음|담)\s*주말/g;
+// "주말에 보자" ("이번 주말"은 위 WEEKEND가 먼저 잡는다)
+const BARE_WEEKEND = /(?<![가-힣])주말/g;
 // "다음주 화요일", "이번 주 금", "다다음주 월요일", "담주 수요일"
 const WITH_WEEK = /(지지난|저저번|지난|저번|이번|다다음|다음|담)\s*주\s*(월|화|수|목|금|토|일)(요일)?/g;
 // "화요일" 단독 (요일 글자만은 오탐이 많아 '요일'까지 요구)
@@ -22,6 +24,11 @@ export const weekday: Parser = (text) => {
 
   for (const m of text.matchAll(WEEKEND)) {
     out.push({ text: m[0], index: m.index!, components: { weekOffset: WEEK_WORDS[m[1]], weekday: 6 } });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
+  for (const m of text.matchAll(BARE_WEEKEND)) {
+    if (overlaps(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { weekday: 6, weekend: true } });
     taken.push([m.index!, m.index! + m[0].length]);
   }
   for (const m of text.matchAll(WITH_WEEK)) {
