@@ -90,6 +90,27 @@ describe('지난 달 → 내년 (규칙 13)', () => {
   it('12월', () => expect(p('12월')!.date).toEqual(d(2026, 12, 1)));
 });
 
+describe('날짜 + 상대 시간은 따로 (규칙 15)', () => {
+  const all = (s: string) => parseAll(s, { referenceDate: ref });
+  it('내일 30분 후', () => {
+    const r = all('내일 30분 후');
+    expect(r).toHaveLength(2);
+    expect(r[0].date).toEqual(d(2026, 10, 31));
+    expect(r[1].date).toEqual(d(2026, 10, 30, 14, 30));
+  });
+  it('이번 주말 한 시간 반 뒤', () => {
+    const r = all('이번 주말 한 시간 반 뒤');
+    expect(r).toHaveLength(2);
+    expect(r[0].date).toEqual(d(2026, 10, 31));
+  });
+  // 일 단위 상대 이동은 시각과 묶인다
+  it('3일 뒤 오후 3시', () => {
+    const r = all('3일 뒤 오후 3시');
+    expect(r).toHaveLength(1);
+    expect(r[0].date).toEqual(d(2026, 11, 2, 15));
+  });
+});
+
 describe('날짜가 명시된 지난 시각 (규칙 14)', () => {
   it('오늘 아침', () => expect(p('오늘 아침')!.date).toEqual(d(2026, 10, 30, 8)));
   it('금요일 아침', () => expect(p('금요일 아침')!.date).toEqual(d(2026, 10, 30, 8)));

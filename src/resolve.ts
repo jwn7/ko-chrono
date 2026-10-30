@@ -51,7 +51,14 @@ function hasConflict(a: Components, b: Components): boolean {
   const timeKeys: (keyof Components)[] = ['hour'];
   const both = (keys: (keyof Components)[]) =>
     keys.some((k) => a[k] !== undefined) && keys.some((k) => b[k] !== undefined);
-  return both(dayKeys) || both(timeKeys);
+  // 규칙 15: "내일" + "30분 후"는 서로 다른 표현
+  const dateKeys: (keyof Components)[] = [
+    'year', 'yearOffset', 'month', 'day', 'dayOffset', 'weekOffset', 'weekday', 'monthOffset', 'monthPart',
+  ];
+  const relKeys: (keyof Components)[] = ['hourOffset', 'minuteOffset'];
+  const has = (x: Components, keys: (keyof Components)[]) => keys.some((k) => x[k] !== undefined);
+  const dateVsRel = (has(a, dateKeys) && has(b, relKeys)) || (has(a, relKeys) && has(b, dateKeys));
+  return both(dayKeys) || both(timeKeys) || dateVsRel;
 }
 
 export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseResult | null {
