@@ -91,7 +91,12 @@ function hasConflict(a: Components, b: Components): boolean {
   const relKeys: (keyof Components)[] = ['hourOffset', 'minuteOffset'];
   const has = (x: Components, keys: (keyof Components)[]) => keys.some((k) => x[k] !== undefined);
   const dateVsRel = (has(a, dateKeys) && has(b, relKeys)) || (has(a, relKeys) && has(b, dateKeys));
-  return both(dayKeys) || both(timeKeys) || dateVsRel;
+  // "11월 5일 목요일": 날짜 뒤의 요일은 덧붙이는 말이라 충돌이 아니다
+  const weekdayNote = (x: Components, y: Components) =>
+    x.day !== undefined && y.weekday !== undefined && !y.weekend &&
+    y.weekOffset === undefined && y.day === undefined && y.dayOffset === undefined && y.monthPart === undefined;
+  const dayConflict = both(dayKeys) && !weekdayNote(a, b) && !weekdayNote(b, a);
+  return dayConflict || both(timeKeys) || dateVsRel;
 }
 
 export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseResult | null {
@@ -133,7 +138,10 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
   }
 
   // 3. 주 + 요일
-  if (c.weekOffset !== undefined || c.weekday !== undefined) {
+  if (c.weekday !== undefined && c.weekOffset === undefined && c.day !== undefined) {
+    // "11월 5일 목요일": 날짜가 우선. 요일이 안 맞으면 어느 쪽이 맞는지 모르므로 null
+    if (d.getDay() !== c.weekday) return null;
+  } else if (c.weekOffset !== undefined || c.weekday !== undefined) {
     if (c.weekOffset !== undefined) {
       const sow = startOfWeek(ref, opts.weekStart);
       sow.setDate(sow.getDate() + c.weekOffset * 7);
@@ -196,8 +204,16 @@ export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseR
 
   if (c.isEnd) {
     // "~까지", "~이내": 시작은 기준 시각, 끝은 해당 시점(시간 없으면 그날 23:59)
-    const end = new Date(d);
-    if (!hasTime) end.setHours(23, 59, 0, 0);
+    let end = new Date(d);
+    if (!hasTime) {
+      // "이번 주 안에", "이번달 안에", "올해 안에" → 그 기간의 마지막 날
+      if (c.weekOffset !== undefined && c.weekday === undefined) end.setDate(end.getDate() + 6);
+      else if (c.monthOffset !== undefined && c.monthPart === undefined && c.day === undefined)
+        end = new Date(end.getFullYear(), end.getMonth(), lastDayOfMonth(end.getFullYear(), end.getMonth()));
+      else if ((c.year !== undefined || c.yearOffset !== undefined) && c.month === undefined)
+        end = new Date(end.getFullYear(), 11, 31);
+      end.setHours(23, 59, 0, 0);
+    }
     result.end = end;
     result.date = new Date(ref);
   }

@@ -13,7 +13,7 @@ export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time];
 
 // "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
-const UNTIL = /^\s*(까지|이내|안에)/;
+const UNTIL = /^\s*(까지|이내|안에|안으로|내로|중으로)/;
 const FROM = /^\s*(부터|~)\s*/;
 
 function withDefaults(opts?: ParseOptions): Required<ParseOptions> {

@@ -90,6 +90,34 @@ describe('지난 달 → 내년 (규칙 13)', () => {
   it('12월', () => expect(p('12월')!.date).toEqual(d(2026, 12, 1)));
 });
 
+describe('구어체', () => {
+  it('담주 월욜', () => expect(p('담주 월욜')!.date).toEqual(d(2026, 11, 2)));
+  it('화욜', () => expect(p('화욜')!.date).toEqual(d(2026, 11, 3)));
+  it('낼 오후 2시', () => expect(p('낼 오후 2시')!.date).toEqual(d(2026, 10, 31, 14)));
+  it('낼 봐', () => expect(p('낼 봐')!.date).toEqual(d(2026, 10, 31)));
+  it('내가 낼게 (잡지 않음)', () => expect(p('내가 낼게')).toBeNull());
+  it('밥값은 내가 낼 거야 (잡지 않음)', () => expect(p('밥값은 내가 낼 거야')).toBeNull());
+  it('내일모레', () => expect(p('내일모레 시간 돼?')!.date).toEqual(d(2026, 11, 1)));
+  it('낼모레', () => expect(p('낼모레')!.date).toEqual(d(2026, 11, 1)));
+});
+
+describe('날짜 + 요일', () => {
+  it('11월 5일 목요일 오후 4시', () => {
+    const r = p('11월 5일 목요일 오후 4시');
+    expect(r!.date).toEqual(d(2026, 11, 5, 16));
+    expect(r!.text).toBe('11월 5일 목요일 오후 4시');
+  });
+  it('11월 5일 수요일 (요일 불일치 → null)', () => expect(p('11월 5일 수요일')).toBeNull());
+});
+
+describe('기간 마감', () => {
+  it('이번 주 안에', () => expect(p('이번 주 안에')!.end).toEqual(d(2026, 11, 1, 23, 59)));
+  it('다음주 중으로', () => expect(p('다음주 중으로')!.end).toEqual(d(2026, 11, 8, 23, 59)));
+  it('이번달 안에', () => expect(p('이번달 안에')!.end).toEqual(d(2026, 10, 31, 23, 59)));
+  it('올해 안에', () => expect(p('올해 안에')!.end).toEqual(d(2026, 12, 31, 23, 59)));
+  it('다음주 월요일까지 (요일은 그대로)', () => expect(p('다음주 월요일까지')!.end).toEqual(d(2026, 11, 2, 23, 59)));
+});
+
 describe('날짜 + 상대 시간은 따로 (규칙 15)', () => {
   const all = (s: string) => parseAll(s, { referenceDate: ref });
   it('내일 30분 후', () => {
