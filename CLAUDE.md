@@ -4,7 +4,7 @@
 chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"를 다루면 우리는 "문장 속 시간"을 다룬다.
 
 ## 현재 상태
-- v0.1 기능 완성. 테스트 194개 통과 (tests/parse.test.ts + tests/real-world.test.ts). `npm test`로 확인.
+- v0.1 기능 완성. 테스트 342개 통과 (tests/parse.test.ts + tests/real-world.test.ts). `npm test`로 확인.
 - 의존성: 런타임 0개. devDependencies는 typescript, vitest뿐. 이 상태를 유지한다 (런타임 의존성 추가 금지).
 
 ## 아키텍처 (src/)
