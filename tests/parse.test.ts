@@ -118,6 +118,29 @@ describe('띄어쓰기 변형', () => {
   it('2027년1월2일', () => expect(p('2027년1월2일')!.date).toEqual(d(2027, 1, 2)));
 });
 
+describe('조사 변형', () => {
+  it('내일은', () => expect(p('내일은 안 돼')!.date).toEqual(d(2026, 10, 31)));
+  it('모레까지는', () => expect(p('모레까지는 끝낼게')!.end).toEqual(d(2026, 11, 1, 23, 59)));
+  it('3시쯤', () => {
+    const r = p('오후 3시쯤 갈게');
+    expect(r!.date).toEqual(d(2026, 10, 30, 15));
+    expect(r!.text).toBe('오후 3시');
+  });
+  it('3시경', () => expect(p('오후 3시경')!.date).toEqual(d(2026, 10, 30, 15)));
+  // 날짜와 시각 사이에 조사가 끼어도 하나로 묶는다
+  it('내일은 오후 3시에', () => {
+    const r = parseAll('내일은 오후 3시에 시간 돼', { referenceDate: ref });
+    expect(r).toHaveLength(1);
+    expect(r[0].date).toEqual(d(2026, 10, 31, 15));
+  });
+  it('토요일쯤 저녁에', () => expect(p('토요일쯤 저녁에')!.date).toEqual(d(2026, 10, 31, 19)));
+  it('다음주 화요일이나 오후 3시', () => {
+    // "이나"는 묶지 않는다 (다른 선택지일 수 있음)
+    expect(parseAll('다음주 화요일이나 오후 3시', { referenceDate: ref })).toHaveLength(2);
+  });
+  it('모레도 오후 2시', () => expect(p('모레도 오후 2시 괜찮아')!.date).toEqual(d(2026, 11, 1, 14)));
+});
+
 describe('한글 월일', () => {
   it('십일월 오일', () => {
     const r = p('십일월 오일에 봐');

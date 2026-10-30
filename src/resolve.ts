@@ -13,10 +13,14 @@ function lastDayOfMonth(y: number, m0: number): number {
   return new Date(y, m0 + 1, 0).getDate();
 }
 
+// 조각 사이에 와도 같은 표현으로 묶는 것: "내일 오후", "내일은 오후", "토요일쯤 저녁", "모레도 2시"
+// "이나/아니면/랑"은 다른 선택지일 수 있어 묶지 않는다.
+const JOINER = /^(?:\s|,|에|의|엔|은|는|도|쯤|경|께|부터)*$/;
+
 /**
  * 인접한 조각(fragment)을 하나로 합친다.
  * 예: "다음주 화요일" + "오후 3시" → 하나의 결과.
- * 인접 기준: 사이에 공백/조사(에,의,엔)/쉼표만 있을 때.
+ * 인접 기준: 사이에 공백/쉼표/조사(에,의,엔,은,는,도)/어림말(쯤,경,께)만 있을 때.
  */
 export function groupFragments(fragments: Fragment[], text: string): Fragment[][] {
   const sorted = [...fragments].sort((a, b) => a.index - b.index);
@@ -27,7 +31,7 @@ export function groupFragments(fragments: Fragment[], text: string): Fragment[][
       const last = g[g.length - 1];
       const between = text.slice(last.index + last.text.length, f.index);
       const conflict = hasConflict(merge(g.map((x) => x.components)), f.components);
-      if (/^[\s,에의엔부터]*$/.test(between) && !conflict) {
+      if (JOINER.test(between) && !conflict) {
         g.push(f);
         continue;
       }
