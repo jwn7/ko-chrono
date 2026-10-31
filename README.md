@@ -9,10 +9,7 @@
 [![dependencies](https://img.shields.io/badge/dependencies-0-1a7f37)](./package.json)
 [![license](https://img.shields.io/npm/l/ko-chrono)](./LICENSE)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/banner-dark.svg">
-  <img alt="'그럼 다음주 화요일 오후 3시에 볼까?'에서 '다음주 화요일 오후 3시'를 찾아 2026-11-03 15:00으로 바꾼다" src="./docs/banner-light.svg" width="760">
-</picture>
+<a href="https://jwn7.github.io/ko-chrono/"><img alt="playground 데모: 문장을 입력하면 날짜 부분이 형광펜으로 표시되고, 반복 일정·모호한 시각·마감·명절 연휴가 카드로 나온다" src="./docs/demo.gif" width="720"></a>
 
 **[▶ 브라우저에서 바로 해 보기](https://jwn7.github.io/ko-chrono/)**
 
