@@ -196,6 +196,18 @@ async function gemini(c: Case): Promise<LlmRun> {
     });
     const ms = performance.now() - t;
     const json = (await res.json()) as GeminiResponse;
+    // 서버 내부 오류(500)는 일시 장애일 수 있어 3번까지 다시. 계속되면 요청 형식 문제일 가능성이 커서 멈춘다
+    if (res.status === 500) {
+      if (attempt < 3) {
+        process.stderr.write(`  500: 10초 기다렸다 다시 (${c.text})\n`);
+        await sleep(10_000);
+        continue;
+      }
+      throw new Error(
+        `Gemini 500이 계속됨: ${json.error?.message ?? ''}\n` +
+          `  ${MODEL}가 이 요청 형식을 지원하지 않거나 서버 장애일 수 있음. 다른 모델로 시도: npm run gemini:models`,
+      );
+    }
     // 무료 티어 한도(429)나 일시 과부하(503)는 기다렸다가 다시. 대기 시간은 지연 측정에 넣지 않는다.
     if ((res.status === 429 || res.status === 503) && attempt < 8) {
       const delay = json.error?.details?.find((d) => d.retryDelay)?.retryDelay;
