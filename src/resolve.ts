@@ -1,6 +1,6 @@
 import type { Ambiguity, Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
 import { toRRule } from './parsers/recurrence.js';
-import { LUNAR_HOLIDAYS } from './util/lunarHolidays.js';
+import { lunarHoliday, lunarToSolar } from './util/lunarHolidays.js';
 
 function startOfWeek(d: Date, weekStart: WeekStart): Date {
   const r = new Date(d);
@@ -69,6 +69,7 @@ export function merge(list: Components[]): Components {
 
 const DATE_KEYS: (keyof Components)[] = [
   'year', 'yearOffset', 'month', 'day', 'dayOffset', 'weekOffset', 'weekday', 'monthOffset', 'monthPart',
+  'lunar', 'lunarDate',
 ];
 
 /** 날짜 정보 없이 시각만 있는 조각인지 ("5시까지", "17:00") */
@@ -142,20 +143,24 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   let dateSet = false;
   const hasTime = c.hour !== undefined || c.hourOffset !== undefined || c.minuteOffset !== undefined;
 
-  // 0. 음력 명절 (규칙 29): 연도를 말했으면 그 해, 아니면 올해 것이 (연휴까지) 지났을 때 내년.
-  //    공식 자료가 없는 연도는 null
+  // 0. 음력 명절·음력 날짜 (규칙 29, 32): 연도를 말했으면 그 음력 해, 아니면 (연휴까지) 지나지 않은 가장 가까운 것.
+  //    음력 12월은 양력으로 다음 해 1월이라 작년 음력부터 본다. 표에 없는 날짜는 null
   const hasYear = c.year !== undefined || c.yearOffset !== undefined;
-  if (c.lunar) {
+  const isLunar = c.lunar !== undefined || c.lunarDate !== undefined;
+  if (isLunar) {
     const said = c.year ?? (c.yearOffset !== undefined ? ref.getFullYear() + c.yearOffset : undefined);
     const tail = (c.dayOffset ?? 0) + (c.durationDays ? c.durationDays - 1 : 0);
-    const years = said !== undefined ? [said] : [ref.getFullYear(), ref.getFullYear() + 1];
+    const y0 = ref.getFullYear();
+    const years = said !== undefined ? [said] : [y0 - 1, y0, y0 + 1, y0 + 2];
+    const solarOf = (y: number) =>
+      c.lunar ? lunarHoliday(y, c.lunar) : lunarToSolar(y, c.lunarDate!.month, c.lunarDate!.day, c.lunarDate!.leap);
     let found: Date | null = null;
     for (const y of years) {
-      const md = LUNAR_HOLIDAYS[y]?.[c.lunar];
-      if (!md) break;
-      const lastMoment = new Date(y, md[0] - 1, md[1] + tail, 23, 59);
+      const s = solarOf(y);
+      if (!s) continue; // 그 해에 없는 날 ("음력 2월 30일", 윤달)
+      const lastMoment = new Date(s.getFullYear(), s.getMonth(), s.getDate() + tail, 23, 59);
       if (said !== undefined || lastMoment >= ref) {
-        found = new Date(y, md[0] - 1, md[1]);
+        found = s;
         break;
       }
     }
@@ -165,7 +170,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   }
 
   // 1. 절대 날짜
-  if (!c.lunar && (hasYear || c.month !== undefined || c.day !== undefined)) {
+  if (!isLunar && (hasYear || c.month !== undefined || c.day !== undefined)) {
     let y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
     // "작년", "내년"처럼 연도만 있으면 1월 1일. "내년 이맘때", "1년 뒤"는 오늘 날짜 유지
     const m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();

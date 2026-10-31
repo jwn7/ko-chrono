@@ -43,6 +43,8 @@ export interface Components {
   sameTime?: boolean;
   /** 음력 명절 (설날·추석·부처님 오신 날). 양력 날짜는 resolve가 util/lunarHolidays 표에서 찾는다 */
   lunar?: 'seollal' | 'chuseok' | 'buddha';
+  /** "음력 3월 3일", "음력 윤5월 1일" */
+  lunarDate?: { month: number; day: number; leap: boolean };
   /** "매주 월요일", "매달 15일": 반복 규칙 (rrule은 resolve가 만든다) */
   recur?: Omit<Recurrence, 'rrule'>;
   /** 연 단위 이동 (내년=+1). 지정되면 "지난 월일 → 내년" 규칙을 적용하지 않는다 */

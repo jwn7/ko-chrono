@@ -37,6 +37,9 @@ const FIXED_RE = new RegExp(
 const LUNAR_RE =
   /(설날|구정|설(?=\s*(?:연휴|전날|다음\s*날|당일))|추석|한가위|부처님\s*오신\s*날|석가\s*탄신일|석탄일|초파일)(?:\s*(연휴))?(?:\s*(전날|다음\s*날|이튿날|당일))?/g;
 
+// "음력 3월 3일", "음력 윤5월 1일" (음력이라고 말한 경우만)
+const LUNAR_DATE_RE = /음력\s*(윤\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
+
 const fixedKey = (name: string) => Object.keys(FIXED).find((k) => k.replace(/ /g, '') === name.replace(/\s/g, ''))!;
 const shiftOf = (m: string | undefined) => (m ? SHIFT[m.replace(/\s/g, '')] : 0);
 
@@ -49,6 +52,11 @@ export const holiday: Parser = (text) => {
     const shift = shiftOf(m[2]);
     if (shift) c.dayOffset = shift;
     out.push({ text: m[0], index: m.index!, components: c });
+  }
+  for (const m of text.matchAll(LUNAR_DATE_RE)) {
+    const month = +m[2], day = +m[3];
+    if (month < 1 || month > 12 || day < 1 || day > 30) continue;
+    out.push({ text: m[0], index: m.index!, components: { lunarDate: { month, day, leap: !!m[1] } } });
   }
   for (const m of text.matchAll(LUNAR_RE)) {
     const name = m[1].replace(/\s/g, '');
