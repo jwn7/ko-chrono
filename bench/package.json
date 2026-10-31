@@ -1,0 +1,13 @@
+{
+  "name": "ko-chrono-bench",
+  "private": true,
+  "type": "module",
+  "description": "ko-chrono vs LLM 날짜 추출 비교. 라이브러리와 별도 패키지라 ko-chrono의 의존성에는 영향이 없다.",
+  "scripts": {
+    "bench": "node compare.ts",
+    "bench:local": "node compare.ts --local-only"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}
