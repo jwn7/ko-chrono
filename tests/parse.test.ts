@@ -534,6 +534,35 @@ describe('시 범위 (규칙 16)', () => {
   it('15:00~17:00', () => expect(range('15:00~17:00')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 30, 17)]));
 });
 
+describe('timezone 옵션', () => {
+  // 기준 시각 ref = 2026-10-30 05:00 UTC = 서울 14:00 = 뉴욕 01:00 (EDT, 11/1에 EST로 바뀜)
+  // 결과는 기계 시간대와 무관한 실제 시점이어야 한다 (서버가 UTC여도 같은 답)
+  const utc = (y: number, m: number, day: number, h = 0, min = 0) => new Date(Date.UTC(y, m - 1, day, h, min));
+  // 파일 상단의 ref는 기계 로컬 14:00이라, 여기서는 기계와 무관한 실제 시점으로 고정한다
+  const at = utc(2026, 10, 30, 5);
+  const tz = (s: string, timezone: string) => parse(s, { referenceDate: at, timezone });
+
+  it('오후 3시 (Asia/Seoul)', () => expect(tz('오후 3시', 'Asia/Seoul')!.date).toEqual(utc(2026, 10, 30, 6)));
+  it('다음주 화요일 오후 3시 (Asia/Seoul)', () =>
+    expect(tz('다음주 화요일 오후 3시', 'Asia/Seoul')!.date).toEqual(utc(2026, 11, 3, 6)));
+  it('오후 3시 (UTC)', () => expect(tz('오후 3시', 'UTC')!.date).toEqual(utc(2026, 10, 30, 15)));
+  it('내일 (UTC)', () => expect(tz('내일', 'UTC')!.date).toEqual(utc(2026, 10, 31)));
+  it('오후 3시 (America/New_York)', () => expect(tz('오후 3시', 'America/New_York')!.date).toEqual(utc(2026, 10, 30, 19)));
+  // 서머타임이 끝난 뒤(EST, UTC-5)의 날짜
+  it('다음주 월요일 (America/New_York)', () =>
+    expect(tz('다음주 월요일', 'America/New_York')!.date).toEqual(utc(2026, 11, 2, 5)));
+  it('이번 주 안에 (America/New_York)', () => {
+    const r = tz('이번 주 안에', 'America/New_York');
+    expect(r!.date).toEqual(at);
+    expect(r!.end).toEqual(utc(2026, 11, 2, 4, 59));
+  });
+  it('오늘부터 3일간 (Asia/Seoul)', () => {
+    const r = tz('오늘부터 3일간', 'Asia/Seoul');
+    expect([r!.date, r!.end]).toEqual([utc(2026, 10, 29, 15), utc(2026, 11, 1, 14, 59)]);
+  });
+  it('없는 시간대는 RangeError', () => expect(() => tz('내일', 'Mars/Olympus')).toThrow(RangeError));
+});
+
 describe('문장 속', () => {
   it('문장 중간', () => {
     const r = p('그럼 다음주 수요일 저녁 7시에 강남에서 볼까?');

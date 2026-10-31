@@ -13,6 +13,7 @@ options: {
   referenceDate?: Date;        // 기본 new Date()
   weekStart?: 'monday'|'sunday'; // 기본 'monday'
   defaultHour?: number;        // 시간 미지정 시 hour, 기본 0
+  timezone?: string;           // IANA 이름. 기본: 실행 환경. 서버(UTC)에선 'Asia/Seoul'
 }
 
 ParseResult: {

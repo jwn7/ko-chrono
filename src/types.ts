@@ -7,7 +7,16 @@ export interface ParseOptions {
   weekStart?: WeekStart;
   /** 시간이 명시되지 않았을 때 넣을 시(hour). 기본값: 0 (00:00) */
   defaultHour?: number;
+  /**
+   * "오후 3시"를 어느 시간대의 3시로 볼지. IANA 이름 ('Asia/Seoul', 'UTC', 'America/New_York').
+   * 기본값: 실행 환경의 시간대. 서버(UTC)에서 한국 사용자 문장을 처리할 땐 'Asia/Seoul'을 넘긴다.
+   * 없는 이름이면 RangeError.
+   */
+  timezone?: string;
 }
+
+/** resolve()가 쓰는 옵션. timezone은 parseAll()이 앞뒤에서 처리하므로 빠진다. */
+export type ResolveOptions = Required<Omit<ParseOptions, 'timezone'>>;
 
 /** 파서들이 추출하는 중간 결과. 날짜/시간 중 아는 것만 채운다. */
 export interface Components {

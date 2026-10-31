@@ -1,4 +1,4 @@
-import type { Components, Fragment, ParseOptions, ParseResult } from './types.js';
+import type { Components, Fragment, ParseOptions, ParseResult, ResolveOptions } from './types.js';
 import { relativeDay } from './parsers/relativeDay.js';
 import { offset } from './parsers/offset.js';
 import { weekday } from './parsers/weekday.js';
@@ -8,6 +8,7 @@ import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
 import { duration } from './parsers/duration.js';
 import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
+import { fromWallClock, toWallClock } from './util/timezone.js';
 
 export type { ParseOptions, ParseResult, WeekStart } from './types.js';
 
@@ -19,7 +20,7 @@ const FROM = /^\s*(부터|~)\s*/;
 // "이번 주 내내" → 그 기간 전체
 const WHOLE = /^\s*내내/;
 
-function withDefaults(opts?: ParseOptions): Required<ParseOptions> {
+function withDefaults(opts?: ParseOptions): ResolveOptions {
   return {
     referenceDate: opts?.referenceDate ?? new Date(),
     weekStart: opts?.weekStart ?? 'monday',
@@ -52,6 +53,19 @@ function dedupe(frags: Fragment[]): Fragment[] {
  */
 export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
   const opts = withDefaults(options);
+  const timezone = options?.timezone;
+  if (timezone === undefined) return parseLocal(text, opts);
+  // 그 시간대의 벽시계로 계산하고, 결과를 실제 시점으로 되돌린다 (util/timezone.ts)
+  const local = parseLocal(text, { ...opts, referenceDate: toWallClock(opts.referenceDate, timezone) });
+  return local.map((r) => {
+    const out: ParseResult = { ...r, date: fromWallClock(r.date, timezone) };
+    if (r.end) out.end = fromWallClock(r.end, timezone);
+    return out;
+  });
+}
+
+/** 실행 환경의 로컬 시간대로 계산 */
+function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
   const frags = dedupe(PARSERS.flatMap((p) => p(text)));
   const groups = groupFragments(frags, text);
   const results: ParseResult[] = [];

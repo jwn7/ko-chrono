@@ -1,4 +1,4 @@
-import type { Components, Fragment, ParseOptions, ParseResult, WeekStart } from './types.js';
+import type { Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
 
 function startOfWeek(d: Date, weekStart: WeekStart): Date {
   const r = new Date(d);
@@ -109,7 +109,7 @@ function hasConflict(a: Components, b: Components): boolean {
   return dayConflict || both(timeKeys) || dateVsRel;
 }
 
-export function resolve(group: Fragment[], opts: Required<ParseOptions>): ParseResult | null {
+export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | null {
   const c = merge(group.map((f) => f.components));
   const ref = opts.referenceDate;
   let d = new Date(ref);
