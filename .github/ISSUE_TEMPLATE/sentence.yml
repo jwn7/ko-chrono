@@ -1,0 +1,39 @@
+name: 문장 제보
+description: 인식이 안 되거나 다르게 해석되는 문장
+title: "[문장] "
+labels: ["sentence"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        실제로 본 문장이 가장 큰 도움이 됩니다. 개인정보(이름, 연락처, 장소)는 지우고 적어 주세요.
+  - type: input
+    id: sentence
+    attributes:
+      label: 문장
+      placeholder: "담주 화욜 퇴근하고 한잔?"
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: 기대한 결과
+      description: 기준 시각을 함께 적어 주세요
+      placeholder: "기준 2026-10-30 (금) 14:00 → 2026-11-03 18:00"
+    validations:
+      required: true
+  - type: input
+    id: actual
+    attributes:
+      label: 실제 결과
+      placeholder: "null / 2026-11-03 00:00 / ..."
+  - type: input
+    id: version
+    attributes:
+      label: 버전
+      placeholder: "0.1.1"
+  - type: textarea
+    id: context
+    attributes:
+      label: 어디서 봤나요? (선택)
+      description: 카톡, 슬랙, 메일 등. 어떤 맥락인지 알면 해석을 정하는 데 도움이 됩니다.
