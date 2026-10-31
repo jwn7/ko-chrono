@@ -1,0 +1,13 @@
+{
+  "name": "ko-chrono-slack-bot-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node app.mjs",
+    "try": "node try.mjs"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.0.0",
+    "ko-chrono": "file:../.."
+  }
+}
