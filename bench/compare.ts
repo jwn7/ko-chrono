@@ -99,6 +99,8 @@ interface LlmRun {
   inputTokens: number;
   outputTokens: number;
   servedBy: string;
+  /** 재시도를 다 써도 서버가 답하지 않음 (오답으로 세고, 지연 통계에서는 뺀다) */
+  failed?: boolean;
 }
 
 async function claude(client: Anthropic, c: Case): Promise<LlmRun> {
@@ -179,6 +181,12 @@ async function gemini(c: Case): Promise<LlmRun> {
       await sleep(waitMs);
       continue;
     }
+    // 재시도를 다 썼으면 이 문장만 실패로 두고 계속한다 (전체 실행을 날리지 않게)
+    if (res.status === 429 || res.status === 503) {
+      process.stderr.write(`  ${res.status}: 포기, 응답 없음으로 기록 (${c.text})\n`);
+      return { answer: { start: null, end: null }, ms: NaN, inputTokens: 0, outputTokens: 0, servedBy: MODEL, failed: true };
+    }
+    // 404(없는 모델), 400(잘못된 요청) 등은 설정 문제라 바로 멈춘다
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${json.error?.message ?? res.statusText}`);
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
     let answer: Answer = { start: null, end: null };
@@ -281,15 +289,22 @@ async function main(): Promise<void> {
     ? `비용 $${cost.toFixed(4)}`
     : '비용: 단가 미등록 (무료 티어면 $0, 유료 단가는 ai.google.dev/pricing)';
   const fallbackCount = runs.filter((r) => r.servedBy !== MODEL).length;
+  const failed = runs.filter((r) => r.failed).length;
+  const llmMs = median(runs.filter((r) => !r.failed).map((r) => r.ms));
 
   console.log(
     `${MODEL.padEnd(20)} 정확도 ${pct(llmCorrect)} (${llmCorrect}/${cases.length})  ` +
-      `지연 중앙값 ${median(runs.map((r) => r.ms)).toFixed(0)}ms/문장  ` +
+      `지연 중앙값 ${llmMs.toFixed(0)}ms/문장  ` +
       `${costText} (${cases.length}문장, 입력 ${inTok} / 출력 ${outTok} 토큰${PROVIDER === 'claude' ? `, effort ${EFFORT}` : ''})`,
   );
   if (fallbackCount) console.log(`  (거절 후 다른 모델이 답한 문장 ${fallbackCount}개)`);
+  if (failed) {
+    const answered = cases.length - failed;
+    const answeredCorrect = cases.filter((c, i) => !runs[i].failed && correct(c, runs[i].answer)).length;
+    console.log(`  (서버 과부하로 응답 없음 ${failed}개 → 오답으로 셈. 응답한 ${answered}개 기준 정확도 ${((answeredCorrect / answered) * 100).toFixed(1)}%)`);
+  }
   if (price) console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
-  console.log(`  → 지연: ko-chrono가 약 ${Math.round((median(runs.map((r) => r.ms)) * 1000) / kcUs).toLocaleString()}배 빠름`);
+  console.log(`  → 지연: ko-chrono가 약 ${Math.round((llmMs * 1000) / kcUs).toLocaleString()}배 빠름`);
 
   // 둘이 다르게 답한 문장
   console.log('\n다르게 답한 문장 (✓ = 기대값과 일치)');
