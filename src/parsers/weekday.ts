@@ -23,6 +23,14 @@ const NTH = new RegExp(
 const NTH_NUM: Record<string, number> = { 첫째: 1, 첫: 1, 둘째: 2, 셋째: 3, 넷째: 4, 다섯째: 5, 마지막: -1 };
 // "2주 뒤 월요일", "3주 후 금요일" → N주 뒤의 그 주의 X요일 ("다다음주 월요일"과 같은 계산)
 const WEEKS_LATER = new RegExp(`(\\d{1,2}|한|두|세|네|다섯)\\s*주\\s*(?:뒤|후)\\s*(${DAY})(?:요일|욜)`, 'g');
+// 업무용 한자어 주 (규칙 33): "차주 금요일", "금주 월요일", "전주 수요일". 금주(禁酒)·전주(도시)·차주(車主)와
+// 겹치므로 요일은 "요일/욜"까지 붙어야 하고, 요일 없이 쓸 때는 뒤에 날짜 말(내로·중으로·에·까지…)이 와야 한다.
+// "전주"는 도시 이름과 너무 자주 겹쳐서 요일이 붙을 때만
+const FORMAL_WEEK: Record<string, number> = { 전전: -2, 전: -1, 금: 0, 차: 1, 익: 1, 차차: 2 };
+const FORMAL_WITH_DAY = new RegExp(`(?<![가-힣])(전전|차차|전|금|차|익)주\\s*(${DAY})(?:요일|욜)`, 'g');
+// "차주 중으로", "금주 내로", "차주에 회의", "익주까지". "금주에"는 "금주에 성공했어"(禁酒)와 겹쳐서 제외
+const FORMAL_WEEK_ONLY =
+  /(?<![가-힣])(?:(전전|차차|차|익)주(?=\s*(?:에(?!게|서)|에는|중으로|중에|내로|내|안에|안으로|까지|초|말|부터))|(금)주(?=\s*(?:중으로|중에|내로|내|안에|안으로|까지|초|말|부터)))/g;
 // "지난 금요일" = 오늘 제외 가장 가까운 과거, "다음 금요일" = 오늘 제외 가장 가까운 미래
 const DIR = new RegExp(`(지난|저번|다음)\\s*(${DAY})(?:요일|욜)`, 'g');
 // "주말에 보자" ("이번 주말"은 위 WEEKEND가 먼저 잡는다)
@@ -40,6 +48,15 @@ export const weekday: Parser = (text) => {
   const taken: Array<[number, number]> = [];
   const overlaps = (i: number, len: number) => taken.some(([s, e]) => i < e && i + len > s);
 
+  for (const m of text.matchAll(FORMAL_WITH_DAY)) {
+    out.push({ text: m[0], index: m.index!, components: { weekOffset: FORMAL_WEEK[m[1]], weekday: WEEKDAY[m[2]] } });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
+  for (const m of text.matchAll(FORMAL_WEEK_ONLY)) {
+    if (overlaps(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { weekOffset: FORMAL_WEEK[m[1] ?? m[2]] } });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
   for (const m of text.matchAll(WEEKS_LATER)) {
     const n = parseKoreanNumber(m[1]);
     if (n == null) continue;
