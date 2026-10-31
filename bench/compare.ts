@@ -1,9 +1,11 @@
-// ko-chrono vs Claude 날짜 추출 비교 벤치마크
+// ko-chrono vs LLM 날짜 추출 비교 벤치마크
 //
 //   cd bench && npm install && npm run build --prefix ..
-//   npm run bench:local                         # ko-chrono만 (API 키 불필요)
-//   ANTHROPIC_API_KEY=... npm run bench         # Claude와 비교 (요금 발생)
+//   npm run bench:local                          # ko-chrono만 (API 키 불필요)
+//   ANTHROPIC_API_KEY=... npm run bench          # Claude와 비교 (요금 발생)
 //   node compare.ts --model claude-haiku-5-5 --effort low
+//   GEMINI_API_KEY=... npm run bench:gemini      # Gemini와 비교 (Google AI Studio 무료 티어 가능)
+//   GEMINI_API_KEY=... npm run gemini:models     # 이 키로 쓸 수 있는 Gemini 모델 목록
 //
 // 같은 112개 문장(tests/cases/messenger.ts)을 양쪽에 넣고 정확도·지연·비용을 잰다.
 // Node 22.6+ 의 TypeScript 타입 제거로 바로 실행된다 (빌드 불필요).
@@ -19,9 +21,11 @@ const flag = (name: string, fallback: string) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 const LOCAL_ONLY = argv.includes('--local-only');
-const MODEL = flag('model', 'claude-opus-5-5');
+const PROVIDER = flag('provider', 'claude') as 'claude' | 'gemini';
+const MODEL = flag('model', PROVIDER === 'gemini' ? 'gemini-2.5-flash' : 'claude-opus-5-5');
 const EFFORT = flag('effort', 'low') as 'low' | 'medium' | 'high';
-const CONCURRENCY = Number(flag('concurrency', '4'));
+// Gemini 무료 티어는 분당 요청 수가 적어서 기본 1개씩 보낸다
+const CONCURRENCY = Number(flag('concurrency', PROVIDER === 'gemini' ? '1' : '4'));
 
 // 2026-10-06 기준 1M 토큰당 USD (claude-api 레퍼런스). 실제 청구액은 콘솔에서 확인할 것.
 const PRICE: Record<string, [number, number]> = {
@@ -123,6 +127,91 @@ async function claude(client: Anthropic, c: Case): Promise<LlmRun> {
   };
 }
 
+// ---------- Gemini (Google AI Studio) ----------
+// REST로 직접 호출한다. 키는 URL이 아니라 x-goog-api-key 헤더로 보낸다.
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    start: { type: 'STRING', nullable: true },
+    end: { type: 'STRING', nullable: true },
+  },
+  required: ['start', 'end'],
+};
+
+function geminiKey(): string {
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!key) {
+    console.error('GEMINI_API_KEY 환경 변수가 없습니다. https://aistudio.google.com/apikey 에서 발급');
+    process.exit(1);
+  }
+  return key;
+}
+
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+  error?: { code: number; message: string; details?: { '@type': string; retryDelay?: string }[] };
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function gemini(c: Case): Promise<LlmRun> {
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [{ role: 'user', parts: [{ text: c.text }] }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA },
+  });
+  for (let attempt = 1; ; attempt++) {
+    const t = performance.now();
+    const res = await fetch(`${GEMINI_BASE}/models/${MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey() },
+      body,
+    });
+    const ms = performance.now() - t;
+    const json = (await res.json()) as GeminiResponse;
+    // 무료 티어 한도(429)나 일시 과부하(503)는 기다렸다가 다시. 대기 시간은 지연 측정에 넣지 않는다.
+    if ((res.status === 429 || res.status === 503) && attempt < 8) {
+      const delay = json.error?.details?.find((d) => d.retryDelay)?.retryDelay;
+      const waitMs = delay ? parseFloat(delay) * 1000 + 500 : 15_000;
+      process.stderr.write(`  ${res.status}: ${(waitMs / 1000).toFixed(0)}초 기다렸다 다시 (${c.text})\n`);
+      await sleep(waitMs);
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini ${res.status}: ${json.error?.message ?? res.statusText}`);
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+    let answer: Answer = { start: null, end: null };
+    try {
+      answer = JSON.parse(text) as Answer;
+    } catch {
+      // 형식이 깨진 답은 오답으로 센다
+    }
+    const u = json.usageMetadata ?? {};
+    return {
+      answer,
+      ms,
+      inputTokens: u.promptTokenCount ?? 0,
+      outputTokens: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0),
+      servedBy: MODEL,
+    };
+  }
+}
+
+async function listGeminiModels(): Promise<void> {
+  const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': geminiKey() } });
+  const json = (await res.json()) as {
+    models?: { name: string; displayName: string; supportedGenerationMethods: string[] }[];
+    error?: { message: string };
+  };
+  if (!res.ok) throw new Error(json.error?.message ?? res.statusText);
+  for (const m of json.models ?? []) {
+    if (m.supportedGenerationMethods.includes('generateContent')) {
+      console.log(`${m.name.replace('models/', '').padEnd(40)} ${m.displayName}`);
+    }
+  }
+}
+
 async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
@@ -138,6 +227,11 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
 }
 
 // ---------- 실행 ----------
+if (argv.includes('--list-models')) {
+  await listGeminiModels();
+  process.exit(0);
+}
+
 const pct = (x: number) => `${((x / cases.length) * 100).toFixed(1)}%`;
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 
@@ -153,26 +247,38 @@ console.log(`\n문장 ${cases.length}개, 기준 시각 ${REF} (금, 서울)\n`)
 console.log(`ko-chrono            정확도 ${pct(kcCorrect)} (${kcCorrect}/${cases.length})  지연 ${kcUs.toFixed(1)}µs/문장  비용 $0`);
 
 if (LOCAL_ONLY) {
-  console.log('\n(--local-only: Claude 비교는 건너뜀. ANTHROPIC_API_KEY를 설정하고 `npm run bench`로 실행)\n');
+  console.log('\n(--local-only: LLM 비교는 건너뜀. `npm run bench` 또는 `npm run bench:gemini`로 실행)\n');
   process.exit(0);
 }
 
-const client = new Anthropic();
-const runs = await pool(cases, CONCURRENCY, (c) => claude(client, c));
+let call: (c: Case) => Promise<LlmRun>;
+if (PROVIDER === 'gemini') {
+  geminiKey();
+  console.log(`(${MODEL}에 ${cases.length}개 문장을 보내는 중. 무료 티어면 몇 분 걸릴 수 있음)`);
+  call = gemini;
+} else {
+  const client = new Anthropic();
+  call = (c) => claude(client, c);
+}
+const runs = await pool(cases, CONCURRENCY, call);
 const llmCorrect = cases.filter((c, i) => correct(c, runs[i].answer)).length;
 const inTok = runs.reduce((s, r) => s + r.inputTokens, 0);
 const outTok = runs.reduce((s, r) => s + r.outputTokens, 0);
 const price = PRICE[MODEL];
 const cost = price ? (inTok * price[0] + outTok * price[1]) / 1e6 : NaN;
+const costText = price
+  ? `비용 $${cost.toFixed(4)}`
+  : '비용: 단가 미등록 (무료 티어면 $0, 유료 단가는 ai.google.dev/pricing)';
 const fallbackCount = runs.filter((r) => r.servedBy !== MODEL).length;
 
 console.log(
   `${MODEL.padEnd(20)} 정확도 ${pct(llmCorrect)} (${llmCorrect}/${cases.length})  ` +
     `지연 중앙값 ${median(runs.map((r) => r.ms)).toFixed(0)}ms/문장  ` +
-    `비용 $${cost.toFixed(4)} (${cases.length}문장, 입력 ${inTok} / 출력 ${outTok} 토큰, effort ${EFFORT})`,
+    `${costText} (${cases.length}문장, 입력 ${inTok} / 출력 ${outTok} 토큰${PROVIDER === 'claude' ? `, effort ${EFFORT}` : ''})`,
 );
 if (fallbackCount) console.log(`  (거절 후 다른 모델이 답한 문장 ${fallbackCount}개)`);
-console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
+if (price) console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
+console.log(`  → 지연: ko-chrono가 약 ${Math.round((median(runs.map((r) => r.ms)) * 1000) / kcUs).toLocaleString()}배 빠름`);
 
 // 둘이 다르게 답한 문장
 console.log('\n다르게 답한 문장 (✓ = 기대값과 일치)');
