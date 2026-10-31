@@ -272,6 +272,9 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     return null;
   }
 
+  // 안전장치: 어떤 경로로든 계산이 깨진 날짜는 내보내지 않는다
+  if (Number.isNaN(d.getTime())) return null;
+
   const first = group[0];
   const last = group[group.length - 1];
   // text는 parseAll()에서 원문 slice로 채운다. _end는 그때 쓰는 내부 값.
@@ -298,7 +301,8 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     // "~까지", "~이내": 시작은 기준 시각, 끝은 해당 시점(시간 없으면 그날 23:59)
     // "~내내": 시작은 그 기간의 시작, 끝은 기간의 끝
     result.end = hasTime ? new Date(d) : periodEnd(d, c);
-    if (c.isEnd) result.date = new Date(ref);
+    // 규칙 30: "어제까지"처럼 이미 지난 마감은 구간이 아니라 그 시점 (date = end)
+    if (c.isEnd) result.date = result.end < ref ? new Date(result.end) : new Date(ref);
   }
   return result;
 }

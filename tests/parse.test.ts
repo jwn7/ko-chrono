@@ -660,6 +660,20 @@ describe('공휴일·기념일·명절 (규칙 29)', () => {
   it('설거지 (잡지 않음)', () => expect(p('설거지 내가 할게')).toBeNull());
 });
 
+describe('퍼즈 테스트가 찾은 버그', () => {
+  it('어제까지 (지난 마감은 그 시점)', () => {
+    const r = p('어제까지 냈어야 했는데');
+    expect(r!.date).toEqual(d(2026, 10, 29, 23, 59));
+    expect(r!.end).toEqual(d(2026, 10, 29, 23, 59));
+  });
+  it('0일간 (기간 아님)', () => expect(p('오늘부터 0일간')!.end).toBeUndefined());
+  it('추석 ~ 11월 (거꾸로 된 구간은 합치지 않음)', () =>
+    expect(parseAll('추석 ~ 11월', { referenceDate: ref })).toHaveLength(2));
+  it('2028년후 (2028년 뒤로 읽지 않음)', () => expect(p('2028년후')!.date.getFullYear()).toBe(2028));
+  it('3년 후', () => expect(p('3년 후')!.date).toEqual(d(2029, 10, 30)));
+  it('302028년 뒤 (Invalid Date 대신 null)', () => expect(p('302028년 뒤')).toBeNull());
+});
+
 describe('timezone 옵션', () => {
   // 기준 시각 ref = 2026-10-30 05:00 UTC = 서울 14:00 = 뉴욕 01:00 (EDT, 11/1에 EST로 바뀜)
   // 결과는 기계 시간대와 무관한 실제 시점이어야 한다 (서버가 UTC여도 같은 답)

@@ -123,6 +123,11 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
         if (isWeekdayOnly(bc) && end < a.date) end.setDate(end.getDate() + 7);
         if (!b.end && !b.hasTime) end = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59);
       }
+      // "추석 ~ 11월"처럼 끝이 시작보다 앞이면 구간이 아니라 별개 표현
+      if (end < a.date) {
+        merged.push(a);
+        continue;
+      }
       merged.push({ ...a, end, text: text.slice(a.index, b.index + b.text.length).trim() });
       i++;
     } else {

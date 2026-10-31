@@ -41,6 +41,8 @@ export const offset: Parser = (text) => {
         c.monthOffset = sign * n;
         break;
       case '년':
+        // "2028년 후"는 "2028년 뒤"가 아니라 "2028년 이후"일 가능성이 크다. 100년 넘게는 상대 이동으로 보지 않는다
+        if (n > 100) continue;
         c.yearOffset = sign * n;
         c.sameDay = true;
         break;

@@ -11,11 +11,12 @@ const NIGHTS = /(\d+)\s*박\s*(\d+)\s*일/g;
 export const duration: Parser = (text) => {
   const out: Fragment[] = [];
   for (const m of text.matchAll(NIGHTS)) {
+    if (+m[2] === 0) continue;
     out.push({ text: m[0], index: m.index!, components: { durationDays: +m[2] } });
   }
   for (const m of text.matchAll(RE)) {
     const n = parseKoreanNumber(m[3] ?? m[1]);
-    if (n == null) continue;
+    if (!n) continue; // "0일간"은 기간이 아니다
     const c: Components = {};
     switch (m[3] ? '일' : m[2]) {
       case '일':
