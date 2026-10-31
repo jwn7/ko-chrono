@@ -79,5 +79,6 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 ### 일요일 오후 — **패턴 추가 금지. 아래만.**
 - [x] README 완성 (예시 20줄, es-hangul 스타일)
 - [x] playground/index.html 동작 확인 (`npm run build` 후 열기) — `npm run playground`
-- [ ] `npm publish` (이름 선점 확인 먼저: `npm view ko-chrono`) — 이름 비어 있음 확인(10/30). **`npm login` 필요, 사용자가 실행**
-- [ ] GitHub 공개 (현재 private: github.com/jwn7/ko-chrono), GIF 하나, GeekNews·X 게시 — **사용자가 실행**
+- [x] `npm publish` — ko-chrono@0.1.0 배포 (10/31). npm 2FA는 보안키(패스키)만 지원, publish 때 브라우저 승인
+- [x] GitHub 공개 — github.com/jwn7/ko-chrono (public, MIT)
+- [ ] GIF 하나, GeekNews·X 게시 — **사용자가 실행**
