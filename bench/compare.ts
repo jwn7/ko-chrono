@@ -6,6 +6,7 @@
 //   node compare.ts --model claude-haiku-5-5 --effort low
 //   GEMINI_API_KEY=... npm run bench:gemini      # Gemini와 비교 (Google AI Studio 무료 티어 가능)
 //   GEMINI_API_KEY=... npm run gemini:models     # 이 키로 쓸 수 있는 Gemini 모델 목록
+//   npm run bench:gemini -- --model gemini-3.8-flash-lite
 //
 // 같은 112개 문장(tests/cases/messenger.ts)을 양쪽에 넣고 정확도·지연·비용을 잰다.
 // Node 22.6+ 의 TypeScript 타입 제거로 바로 실행된다 (빌드 불필요).
@@ -22,7 +23,7 @@ const flag = (name: string, fallback: string) => {
 };
 const LOCAL_ONLY = argv.includes('--local-only');
 const PROVIDER = flag('provider', 'claude') as 'claude' | 'gemini';
-const MODEL = flag('model', PROVIDER === 'gemini' ? 'gemini-2.5-flash' : 'claude-opus-5-5');
+const MODEL = flag('model', PROVIDER === 'gemini' ? 'gemini-3.8-flash' : 'claude-opus-5-5');
 const EFFORT = flag('effort', 'low') as 'low' | 'medium' | 'high';
 // Gemini 무료 티어는 분당 요청 수가 적어서 기본 1개씩 보낸다
 const CONCURRENCY = Number(flag('concurrency', PROVIDER === 'gemini' ? '1' : '4'));
@@ -142,8 +143,7 @@ const GEMINI_SCHEMA = {
 function geminiKey(): string {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!key) {
-    console.error('GEMINI_API_KEY 환경 변수가 없습니다. https://aistudio.google.com/apikey 에서 발급');
-    process.exit(1);
+    throw new Error('GEMINI_API_KEY 환경 변수가 없습니다. https://aistudio.google.com/apikey 에서 발급');
   }
   return key;
 }
@@ -227,67 +227,73 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
 }
 
 // ---------- 실행 ----------
-if (argv.includes('--list-models')) {
-  await listGeminiModels();
-  process.exit(0);
+// process.exit()는 쓰지 않는다: Windows의 Node는 fetch 연결이 열린 채 종료하면
+// 'Assertion failed: UV_HANDLE_CLOSING'으로 죽는다. main이 끝나면 자연스럽게 종료된다.
+async function main(): Promise<void> {
+  if (argv.includes('--list-models')) return listGeminiModels();
+
+  const pct = (x: number) => `${((x / cases.length) * 100).toFixed(1)}%`;
+  const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+
+  // ko-chrono: 정확도 + 지연 (워밍업 후 1000회 반복 평균)
+  const kcAnswers = cases.map(koChrono);
+  const kcCorrect = cases.filter((c, i) => correct(c, kcAnswers[i])).length;
+  for (let i = 0; i < 200; i++) cases.forEach(koChrono);
+  const t0 = performance.now();
+  for (let i = 0; i < 1000; i++) cases.forEach(koChrono);
+  const kcUs = ((performance.now() - t0) / (1000 * cases.length)) * 1000;
+
+  console.log(`\n문장 ${cases.length}개, 기준 시각 ${REF} (금, 서울)\n`);
+  console.log(`ko-chrono            정확도 ${pct(kcCorrect)} (${kcCorrect}/${cases.length})  지연 ${kcUs.toFixed(1)}µs/문장  비용 $0`);
+
+  if (LOCAL_ONLY) {
+    console.log('\n(--local-only: LLM 비교는 건너뜀. `npm run bench` 또는 `npm run bench:gemini`로 실행)\n');
+    return;
+  }
+
+  let call: (c: Case) => Promise<LlmRun>;
+  if (PROVIDER === 'gemini') {
+    geminiKey();
+    console.log(`(${MODEL}에 ${cases.length}개 문장을 보내는 중. 무료 티어면 몇 분 걸릴 수 있음)`);
+    call = gemini;
+  } else {
+    const client = new Anthropic();
+    call = (c) => claude(client, c);
+  }
+  const runs = await pool(cases, CONCURRENCY, call);
+  const llmCorrect = cases.filter((c, i) => correct(c, runs[i].answer)).length;
+  const inTok = runs.reduce((s, r) => s + r.inputTokens, 0);
+  const outTok = runs.reduce((s, r) => s + r.outputTokens, 0);
+  const price = PRICE[MODEL];
+  const cost = price ? (inTok * price[0] + outTok * price[1]) / 1e6 : NaN;
+  const costText = price
+    ? `비용 $${cost.toFixed(4)}`
+    : '비용: 단가 미등록 (무료 티어면 $0, 유료 단가는 ai.google.dev/pricing)';
+  const fallbackCount = runs.filter((r) => r.servedBy !== MODEL).length;
+
+  console.log(
+    `${MODEL.padEnd(20)} 정확도 ${pct(llmCorrect)} (${llmCorrect}/${cases.length})  ` +
+      `지연 중앙값 ${median(runs.map((r) => r.ms)).toFixed(0)}ms/문장  ` +
+      `${costText} (${cases.length}문장, 입력 ${inTok} / 출력 ${outTok} 토큰${PROVIDER === 'claude' ? `, effort ${EFFORT}` : ''})`,
+  );
+  if (fallbackCount) console.log(`  (거절 후 다른 모델이 답한 문장 ${fallbackCount}개)`);
+  if (price) console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
+  console.log(`  → 지연: ko-chrono가 약 ${Math.round((median(runs.map((r) => r.ms)) * 1000) / kcUs).toLocaleString()}배 빠름`);
+
+  // 둘이 다르게 답한 문장
+  console.log('\n다르게 답한 문장 (✓ = 기대값과 일치)');
+  cases.forEach((c, i) => {
+    const a = correct(c, kcAnswers[i]), b = correct(c, runs[i].answer);
+    if (a === b) return;
+    const show = (x: Answer) => `${x.start ?? '-'} ~ ${x.end ?? '-'}`;
+    console.log(`  ${c.text}`);
+    console.log(`    기대 ${show(expected(c))}`);
+    console.log(`    ko-chrono ${a ? '✓' : '✗'} ${show(kcAnswers[i])}   ${MODEL} ${b ? '✓' : '✗'} ${show(runs[i].answer)}`);
+  });
+  console.log();
 }
 
-const pct = (x: number) => `${((x / cases.length) * 100).toFixed(1)}%`;
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-
-// ko-chrono: 정확도 + 지연 (워밍업 후 1000회 반복 평균)
-const kcAnswers = cases.map(koChrono);
-const kcCorrect = cases.filter((c, i) => correct(c, kcAnswers[i])).length;
-for (let i = 0; i < 200; i++) cases.forEach(koChrono);
-const t0 = performance.now();
-for (let i = 0; i < 1000; i++) cases.forEach(koChrono);
-const kcUs = ((performance.now() - t0) / (1000 * cases.length)) * 1000;
-
-console.log(`\n문장 ${cases.length}개, 기준 시각 ${REF} (금, 서울)\n`);
-console.log(`ko-chrono            정확도 ${pct(kcCorrect)} (${kcCorrect}/${cases.length})  지연 ${kcUs.toFixed(1)}µs/문장  비용 $0`);
-
-if (LOCAL_ONLY) {
-  console.log('\n(--local-only: LLM 비교는 건너뜀. `npm run bench` 또는 `npm run bench:gemini`로 실행)\n');
-  process.exit(0);
-}
-
-let call: (c: Case) => Promise<LlmRun>;
-if (PROVIDER === 'gemini') {
-  geminiKey();
-  console.log(`(${MODEL}에 ${cases.length}개 문장을 보내는 중. 무료 티어면 몇 분 걸릴 수 있음)`);
-  call = gemini;
-} else {
-  const client = new Anthropic();
-  call = (c) => claude(client, c);
-}
-const runs = await pool(cases, CONCURRENCY, call);
-const llmCorrect = cases.filter((c, i) => correct(c, runs[i].answer)).length;
-const inTok = runs.reduce((s, r) => s + r.inputTokens, 0);
-const outTok = runs.reduce((s, r) => s + r.outputTokens, 0);
-const price = PRICE[MODEL];
-const cost = price ? (inTok * price[0] + outTok * price[1]) / 1e6 : NaN;
-const costText = price
-  ? `비용 $${cost.toFixed(4)}`
-  : '비용: 단가 미등록 (무료 티어면 $0, 유료 단가는 ai.google.dev/pricing)';
-const fallbackCount = runs.filter((r) => r.servedBy !== MODEL).length;
-
-console.log(
-  `${MODEL.padEnd(20)} 정확도 ${pct(llmCorrect)} (${llmCorrect}/${cases.length})  ` +
-    `지연 중앙값 ${median(runs.map((r) => r.ms)).toFixed(0)}ms/문장  ` +
-    `${costText} (${cases.length}문장, 입력 ${inTok} / 출력 ${outTok} 토큰${PROVIDER === 'claude' ? `, effort ${EFFORT}` : ''})`,
-);
-if (fallbackCount) console.log(`  (거절 후 다른 모델이 답한 문장 ${fallbackCount}개)`);
-if (price) console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
-console.log(`  → 지연: ko-chrono가 약 ${Math.round((median(runs.map((r) => r.ms)) * 1000) / kcUs).toLocaleString()}배 빠름`);
-
-// 둘이 다르게 답한 문장
-console.log('\n다르게 답한 문장 (✓ = 기대값과 일치)');
-cases.forEach((c, i) => {
-  const a = correct(c, kcAnswers[i]), b = correct(c, runs[i].answer);
-  if (a === b) return;
-  const show = (x: Answer) => `${x.start ?? '-'} ~ ${x.end ?? '-'}`;
-  console.log(`  ${c.text}`);
-  console.log(`    기대 ${show(expected(c))}`);
-  console.log(`    ko-chrono ${a ? '✓' : '✗'} ${show(kcAnswers[i])}   ${MODEL} ${b ? '✓' : '✗'} ${show(runs[i].answer)}`);
+main().catch((e: unknown) => {
+  console.error(`\n${e instanceof Error ? e.message : String(e)}`);
+  process.exitCode = 1;
 });
-console.log();
