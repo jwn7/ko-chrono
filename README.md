@@ -14,6 +14,8 @@
   <img alt="'그럼 다음주 화요일 오후 3시에 볼까?'에서 '다음주 화요일 오후 3시'를 찾아 2026-11-03 15:00으로 바꾼다" src="./docs/banner-light.svg" width="760">
 </picture>
 
+**[▶ 브라우저에서 바로 해 보기](https://jwn7.github.io/ko-chrono/)**
+
 [설치](#설치) · [사용법](#사용법) · [지원 표현](#지원-표현) · [해석 규칙](#해석-규칙) · [예제](#예제) · [문장 제보](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml)
 
 </div>
@@ -236,7 +238,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 |---|---|---|
 | ✅ | [**할 일 빠른 입력**](./examples/quick-add.mjs)<br>`parseEvent`로 "다음주 금요일까지 보고서 제출" → 제목 "보고서 제출" + 마감 11/6 23:59 | `node examples/quick-add.mjs "..."` |
 | 💬 | [**Slack 봇**](./examples/slack-bot)<br>채널 메시지에서 날짜를 찾아 스레드로 알려줌 (UTC 서버 + `timezone`) | `node examples/slack-bot/try.mjs` |
-| 🧪 | [**Playground**](./playground/index.html)<br>브라우저에서 직접 입력해 보기 | `npm run playground` |
+| 🧪 | [**Playground**](https://jwn7.github.io/ko-chrono/)<br>브라우저에서 직접 입력해 보기 (문장을 넣으면 공유 링크가 생김) | [jwn7.github.io/ko-chrono](https://jwn7.github.io/ko-chrono/) · 로컬은 `npm run playground` |
 
 <br>
 

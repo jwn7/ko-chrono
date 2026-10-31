@@ -94,4 +94,4 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 - [x] GitHub 공개 — github.com/jwn7/ko-chrono (public, MIT)
 - [ ] GIF 하나, GeekNews·X 게시 — **사용자가 실행**
 - [ ] chrono-node 한국어 PR: contrib/chrono-ko/README.md 순서대로 fork → 패치 적용 → npm test·prettier·eslint → PR — **사용자가 실행**
-- [ ] playground 공개: Settings → Pages → Source를 **GitHub Actions**로 → Actions → Deploy playground → Run workflow — **사용자가 실행**. 그 뒤 README에 `https://jwn7.github.io/ko-chrono/` 링크 추가하고 pages.yml 트리거에 push 추가
+- [x] playground 공개 — https://jwn7.github.io/ko-chrono/ (src·playground가 바뀌면 push 때 자동 배포)

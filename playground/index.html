@@ -3,73 +3,301 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ko-chrono playground</title>
+<title>ko-chrono — 한국어 날짜 파서 playground</title>
+<meta name="description" content="한국어 문장 속 날짜·시간을 Date로. '다음주 화요일 오후 3시'를 직접 입력해 보세요." />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 <style>
-  body { font-family: -apple-system, "Pretendard", system-ui, sans-serif; max-width: 720px; margin: 48px auto; padding: 0 20px; color: #1a1a1a; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  p.sub { color: #666; margin-top: 0; }
-  textarea { width: 100%; font-size: 18px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-  .ref { font-size: 13px; color: #666; margin: 8px 0 16px; }
-  .ref input { font-size: 13px; }
-  .result { background: #f6f6f6; border-radius: 8px; padding: 14px; margin-top: 8px; }
-  .result b { font-size: 18px; }
-  .muted { color: #888; }
-  .chips button { margin: 4px 4px 0 0; padding: 4px 10px; border: 1px solid #ddd; background: #fff; border-radius: 999px; cursor: pointer; font-size: 13px; }
-  pre { font-size: 12px; color: #444; white-space: pre-wrap; }
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --text: #1b1b1f; --muted: #6b6b76; --line: #e4e4e7;
+    --accent: #2f6fed; --accent-soft: #e8efff; --mark: #ffe58f; --warn: #b45309; --warn-soft: #fff4e5;
+    --ok: #15803d; --ok-soft: #e8f7ee; --code: #f1f1f4; --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111114; --surface: #1a1a1f; --text: #ececf1; --muted: #9a9aa6; --line: #2c2c34;
+      --accent: #7aa2ff; --accent-soft: #1f2a44; --mark: #6b5a12; --warn: #fbbf77; --warn-soft: #3a2a14;
+      --ok: #6ee7a0; --ok-soft: #16301f; --code: #23232a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
+  .tagline { margin: 4px 0 0; color: var(--muted); }
+  .links { display: flex; gap: 8px; }
+  .links a {
+    font-size: 13px; color: var(--text); text-decoration: none; border: 1px solid var(--line);
+    background: var(--surface); padding: 6px 12px; border-radius: 999px;
+  }
+  .links a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .editor { padding: 16px; }
+  label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  textarea {
+    width: 100%; border: 0; outline: none; resize: vertical; background: transparent; color: var(--text);
+    font: inherit; font-size: 20px; line-height: 1.5; min-height: 64px;
+  }
+  textarea::placeholder { color: var(--muted); opacity: .7; }
+  .preview { margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 15px; min-height: 24px; word-break: keep-all; }
+  .preview mark { background: var(--mark); color: var(--text); border-radius: 4px; padding: 1px 3px; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .toolbar input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+  .spacer { flex: 1; }
+  button.ghost {
+    font: inherit; font-size: 13px; color: var(--muted); background: transparent; border: 1px solid var(--line);
+    border-radius: 8px; padding: 4px 10px; cursor: pointer;
+  }
+  button.ghost:hover { color: var(--accent); border-color: var(--accent); }
+
+  .examples { margin: 28px 0 8px; display: grid; gap: 10px; }
+  .group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+  .group span { font-size: 12px; color: var(--muted); width: 72px; flex-shrink: 0; }
+  .chip {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 12px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  #out { margin-top: 20px; display: grid; gap: 12px; }
+  .event { font-size: 14px; color: var(--muted); }
+  .event b { color: var(--text); background: var(--accent-soft); padding: 2px 8px; border-radius: 6px; }
+  .result { padding: 18px 20px; }
+  .found { font-size: 13px; color: var(--muted); }
+  .found q { color: var(--text); font-weight: 600; quotes: "“" "”"; }
+  .when { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 2px; }
+  .date { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .time { font-size: 20px; font-weight: 600; }
+  .rel { font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+  .range { color: var(--muted); font-size: 15px; }
+  .badges { display: grid; gap: 6px; margin-top: 10px; }
+  .badge { font-size: 13px; padding: 8px 10px; border-radius: 10px; }
+  .badge.repeat { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge code { font-size: 12px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "D2Coding", monospace; }
+  pre { background: var(--code); border-radius: 10px; padding: 12px; font-size: 12px; overflow-x: auto; margin: 8px 0 0; }
+  .empty { padding: 28px 20px; text-align: center; color: var(--muted); }
+  .empty b { color: var(--text); }
+
+  .snippet { margin-top: 12px; padding: 14px 16px; }
+  .snippet-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  footer { margin-top: 40px; font-size: 13px; color: var(--muted); text-align: center; }
+  footer a { color: inherit; }
+
+  @media (max-width: 520px) {
+    .wrap { padding-top: 24px; }
+    h1 { font-size: 24px; }
+    textarea { font-size: 18px; }
+    .group span { width: 100%; }
+    .date { font-size: 22px; }
+  }
 </style>
 </head>
 <body>
-<h1>ko-chrono</h1>
-<p class="sub">한국어 문장에서 날짜/시간을 뽑아냅니다. 서버 없음, 전부 브라우저에서.</p>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ko-chrono</h1>
+      <p class="tagline">한국어 문장 속 날짜·시간을 <code>Date</code>로. 서버 없이 전부 이 브라우저에서 돌아갑니다.</p>
+    </div>
+    <nav class="links">
+      <a href="https://github.com/jwn7/ko-chrono" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/ko-chrono" target="_blank" rel="noopener">npm</a>
+    </nav>
+  </header>
 
-<textarea id="input" rows="2" placeholder="예: 다음주 화요일 오후 3시에 강남에서 볼까?"></textarea>
-<div class="ref">기준 시각 <input type="datetime-local" id="ref" /> (비우면 지금)</div>
+  <section class="card editor">
+    <label class="sr" for="input">날짜가 들어간 문장</label>
+    <textarea id="input" rows="2" autofocus placeholder="문장을 입력해 보세요. 예: 그럼 다음주 수요일 저녁 7시에 강남에서 볼까?"></textarea>
+    <div class="preview" id="preview" aria-hidden="true"></div>
+    <div class="toolbar">
+      <span>기준 시각</span>
+      <input type="datetime-local" id="ref" aria-label="기준 시각" />
+      <button class="ghost" id="now" type="button">지금으로</button>
+      <span class="spacer"></span>
+      <button class="ghost" id="share" type="button">링크 복사</button>
+    </div>
+  </section>
 
-<div class="chips" id="chips"></div>
-<div id="out"></div>
+  <section id="out" aria-live="polite"></section>
+
+  <section class="card snippet" id="snippet" hidden>
+    <div class="snippet-head"><span>코드로 쓰기 — <code>npm install ko-chrono</code></span><button class="ghost" id="copy" type="button">복사</button></div>
+    <pre id="code"></pre>
+  </section>
+
+  <section class="examples" id="examples" aria-label="예시 문장"></section>
+
+  <footer>
+    MIT · 음력 명절은 <a href="https://astro.kasi.re.kr/life/post/calendarData" target="_blank" rel="noopener">한국천문연구원</a> 자료 기준 ·
+    인식이 안 되는 문장은 <a href="https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml" target="_blank" rel="noopener">제보</a>
+  </footer>
+</div>
 
 <script type="module">
   import { parseAll, parseEvent } from '../dist/index.js';
 
-  const examples = [
-    '다음주 화요일 오후 3시', '그럼 다음주 수요일 저녁 7시에 강남에서 볼까?', '다음주 금요일까지 보고서 제출',
-    '매주 월수금 오전 7시 헬스', '3시에 보자', '오늘부터 3일간 휴가', '설 연휴', '음력 3월 3일 할머니 생신',
-    '11월 첫째 주 월요일', '내일 10시 아니면 모레 2시', '담주 월욜 점심 ㄱ?', '11/3(화) 14:00 킥오프',
-    '격주 금요일 저녁 회식', '이번 주 안에 보내주세요', '내가 낼게',
-  ];
-  const $ = (id) => document.getElementById(id);
-  const fmt = (d) => d.toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
-  // 입력을 화면에 넣을 때는 HTML로 해석되지 않게
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const AMBIGUITY = { meridiem: '오전/오후가 없어요', 'next-weekday': '이번 주인지 다음 주인지', 'approximate-time': '관례로 정한 시각이에요' };
+  const EXAMPLES = {
+    '약속': ['그럼 다음주 수요일 저녁 7시에 강남에서 볼까?', '담주 월욜 점심 ㄱ?', '내일 10시 아니면 모레 2시'],
+    '마감·기간': ['다음주 금요일까지 보고서 제출', '이번 주 안에 보내주세요', '오늘부터 3일간 휴가'],
+    '반복': ['매주 월수금 오전 7시 헬스', '격주 금요일 저녁 회식', '매달 마지막 주 금요일 정산'],
+    '명절·음력': ['설 연휴에 여행 가자', '추석 전날 출발', '음력 3월 3일 할머니 생신'],
+    '애매한 말': ['3시에 보자', '다음 토요일', '내가 낼게'],
+  };
+  const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  const AMBIGUITY = {
+    meridiem: '오전/오후가 없어서 이렇게 해석했어요',
+    'next-weekday': '"다음 ○요일"은 이번 주일 수도, 다음 주일 수도 있어요',
+    'approximate-time': '"저녁", "아침" 같은 말은 관례 시각으로 정했어요',
+  };
 
-  for (const ex of examples) {
-    const b = document.createElement('button');
-    b.textContent = ex;
-    b.onclick = () => { $('input').value = ex; run(); };
-    $('chips').appendChild(b);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const pad = (n) => String(n).padStart(2, '0');
+
+  // ---------- 날짜 표시 ----------
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  function dateText(d, ref) {
+    const year = d.getFullYear() !== ref.getFullYear() ? `${d.getFullYear()}년 ` : '';
+    return `${year}${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
+  }
+  function timeText(d) {
+    const h = d.getHours(), m = d.getMinutes();
+    return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(m)}`;
+  }
+  function relText(d, ref) {
+    const days = Math.round((startOfDay(d) - startOfDay(ref)) / 86400000);
+    return { 0: '오늘', 1: '내일', 2: '모레', [-1]: '어제', [-2]: '그저께' }[days] ?? (days > 0 ? `${days}일 뒤` : `${-days}일 전`);
+  }
+  const when = (d, hasTime, ref) => `${dateText(d, ref)}${hasTime ? ' ' + timeText(d) : ''}`;
+
+  function repeatText(r) {
+    const every = r.interval === 2 && r.freq === 'WEEKLY' ? '격주' : r.interval > 1 ? `${r.interval}` : '매';
+    const days = (r.byWeekday ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DAYS[d]).join('·');
+    switch (r.freq) {
+      case 'DAILY': return '매일';
+      case 'WEEKLY': return `${every === '매' ? '매주' : every === '격주' ? '격주' : every + '주마다'} ${days}요일`;
+      case 'MONTHLY':
+        if (r.byWeekdayNth) return `매달 ${r.byWeekdayNth === -1 ? '마지막' : r.byWeekdayNth + '번째'} 주 ${days}요일`;
+        return `매달 ${r.byMonthDay === -1 ? '말일' : r.byMonthDay + '일'}`;
+      case 'YEARLY': return `매년 ${r.byMonth}월 ${r.byMonthDay}일`;
+      case 'HOURLY': return `${r.interval}시간마다`;
+      default: return `${r.interval}분마다`;
+    }
+  }
+
+  // ---------- 화면 ----------
+  function refDate() {
+    const v = $('ref').value;
+    return v ? new Date(v) : new Date();
+  }
+  function setRefNow() {
+    const d = new Date();
+    $('ref').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function preview(text, results) {
+    if (!text.trim()) return '';
+    let html = '', at = 0;
+    for (const r of [...results].sort((a, b) => a.index - b.index)) {
+      if (r.index < at) continue;
+      html += esc(text.slice(at, r.index)) + `<mark>${esc(r.text)}</mark>`;
+      at = r.index + r.text.length;
+    }
+    return html + esc(text.slice(at));
+  }
+
+  function card(r, ref) {
+    const isDeadline = r.end && r.date.getTime() === ref.getTime();
+    const main = isDeadline ? r.end : r.date;
+    const lines = [];
+    lines.push(`<div class="found">찾은 부분 <q>${esc(r.text)}</q>${isDeadline ? ' · 마감' : r.end ? ' · 기간' : ''}</div>`);
+    lines.push(`<div class="when"><span class="date">${dateText(main, ref)}</span>${r.hasTime || isDeadline ? `<span class="time">${timeText(main)}</span>` : ''}<span class="rel">${relText(main, ref)}</span></div>`);
+    if (r.end && !isDeadline) lines.push(`<div class="range">${when(r.date, r.hasTime, ref)} 부터 → ${when(r.end, true, ref)} 까지</div>`);
+    const badges = [];
+    if (r.recurrence) badges.push(`<div class="badge repeat">🔁 ${repeatText(r.recurrence)} 반복 · <code>${esc(r.recurrence.rrule)}</code></div>`);
+    if (r.ambiguity) {
+      const alts = r.ambiguity.alternatives.map((a) => when(a, true, ref)).join(', ');
+      badges.push(`<div class="badge warn">⚠️ ${AMBIGUITY[r.ambiguity.reason]}${alts ? ` · 다른 해석: <b>${alts}</b>` : ''}</div>`);
+    }
+    if (badges.length) lines.push(`<div class="badges">${badges.join('')}</div>`);
+    lines.push(`<details><summary>JSON</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>`);
+    return `<article class="card result">${lines.join('')}</article>`;
   }
 
   function run() {
     const text = $('input').value;
-    const refVal = $('ref').value;
-    const opts = refVal ? { referenceDate: new Date(refVal) } : {};
-    const results = parseAll(text, opts);
-    if (!text.trim()) { $('out').innerHTML = ''; return; }
-    if (!results.length) { $('out').innerHTML = '<div class="result muted">날짜 표현을 찾지 못했어요</div>'; return; }
-    const event = parseEvent(text, opts);
-    const title = event.title ? `<div class="muted">parseEvent 제목: <b>${esc(event.title)}</b></div>` : '';
-    $('out').innerHTML = title + results.map(r => `
-      <div class="result">
-        <b>${fmt(r.date)}</b>${r.end ? ` → <b>${fmt(r.end)}</b>` : ''}
-        <div class="muted">"${esc(r.text)}" (index ${r.index}${r.hasTime ? '' : ', 시간 없음'})</div>
-        ${r.recurrence ? `<div>🔁 반복 <code>${esc(r.recurrence.rrule)}</code></div>` : ''}
-        ${r.ambiguity ? `<div>⚠️ ${AMBIGUITY[r.ambiguity.reason]}${r.ambiguity.alternatives.length ? ` · 다른 해석 ${r.ambiguity.alternatives.map(fmt).join(', ')}` : ''}</div>` : ''}
-        <pre>${esc(JSON.stringify(r, null, 2))}</pre>
-      </div>`).join('');
+    const ref = refDate();
+    const opts = { referenceDate: ref };
+    const results = text.trim() ? parseAll(text, opts) : [];
+    $('preview').innerHTML = preview(text, results);
+    history.replaceState(null, '', text ? `#q=${encodeURIComponent(text)}` : location.pathname);
+
+    if (!text.trim()) {
+      $('out').innerHTML = `<div class="card empty">위에 문장을 입력하거나 예시를 눌러 보세요.<br><b>문장 속 날짜 부분</b>이 형광펜으로 표시됩니다.</div>`;
+      $('snippet').hidden = true;
+      return;
+    }
+    if (!results.length) {
+      $('out').innerHTML = `<div class="card empty">날짜 표현을 찾지 못했어요.<br>날짜가 아닌 말을 잘못 잡지 않도록, 애매하면 비워 둡니다.</div>`;
+    } else {
+      const event = parseEvent(text, opts);
+      // 대화("…볼까?", "보자", "가요")는 제목 분리가 의미 없다. "치과", "보고서 제출"처럼 할 일로 보일 때만
+      const chatty = /(?:[?？]|[자요까지해봐야다네죠ㄱ])[\s!.~]*$/.test(event.title);
+      const title = event.title && event.title !== text.trim() && !chatty
+        ? `<div class="event">할 일로 쓰면 → 제목 <b>${esc(event.title)}</b></div>` : '';
+      $('out').innerHTML = title + results.map((r) => card(r, ref)).join('');
+    }
+    $('code').textContent =
+      `import { parse, parseEvent } from 'ko-chrono';\n\n` +
+      `parse(${JSON.stringify(text)});\n` +
+      `parseEvent(${JSON.stringify(text)});  // 제목 + 시점`;
+    $('snippet').hidden = false;
   }
+
+  // ---------- 예시·이벤트 ----------
+  for (const [group, items] of Object.entries(EXAMPLES)) {
+    const row = document.createElement('div');
+    row.className = 'group';
+    row.innerHTML = `<span>${group}</span>`;
+    for (const ex of items) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = ex;
+      b.onclick = () => { $('input').value = ex; run(); $('input').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      row.appendChild(b);
+    }
+    $('examples').appendChild(row);
+  }
+
+  const flash = (btn, label) => { const old = btn.textContent; btn.textContent = label; setTimeout(() => (btn.textContent = old), 1200); };
   $('input').addEventListener('input', run);
   $('ref').addEventListener('input', run);
+  $('now').onclick = () => { setRefNow(); run(); };
+  $('share').onclick = async () => { await navigator.clipboard.writeText(location.href); flash($('share'), '복사됨'); };
+  $('copy').onclick = async () => { await navigator.clipboard.writeText($('code').textContent); flash($('copy'), '복사됨'); };
+
+  // 공유 링크(#q=...)로 들어오거나 주소창에서 #q=를 바꾸면 그 문장으로
+  function fromHash() {
+    const q = new URLSearchParams(location.hash.slice(1)).get('q');
+    if (q !== null && q !== $('input').value) {
+      $('input').value = q;
+      run();
+    }
+  }
+  window.addEventListener('hashchange', fromHash);
+  setRefNow();
+  fromHash();
+  if (!$('input').value) run();
 </script>
 </body>
 </html>

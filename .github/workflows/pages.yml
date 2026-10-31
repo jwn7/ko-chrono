@@ -1,8 +1,11 @@
 name: Deploy playground
 
-# GitHub Pages가 켜져 있어야 한다: Settings → Pages → Source: GitHub Actions.
-# 켜기 전에 자동으로 돌면 매번 실패하므로 지금은 수동 실행만 (Actions → Deploy playground → Run workflow).
+# https://jwn7.github.io/ko-chrono/ (Settings → Pages → Source: GitHub Actions)
+# 라이브러리나 playground가 바뀌면 자동 배포. 수동 실행도 가능
 on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'playground/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
