@@ -167,12 +167,25 @@ const failedRun = (): LlmRun => ({
   answer: { start: null, end: null }, ms: NaN, inputTokens: 0, outputTokens: 0, servedBy: MODEL, failed: true,
 });
 
+// Gemma(오픈 모델)는 같은 API·같은 키로 쓸 수 있고 무료 한도가 넉넉하지만, 시스템 지시와
+// JSON 스키마 강제를 지원하지 않는다. 지시를 메시지에 넣고 답에서 JSON을 뽑아낸다.
+const IS_GEMMA = MODEL.startsWith('gemma');
+
 async function gemini(c: Case): Promise<LlmRun> {
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM }] },
-    contents: [{ role: 'user', parts: [{ text: c.text }] }],
-    generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA },
-  });
+  const body = JSON.stringify(
+    IS_GEMMA
+      ? {
+          contents: [{
+            role: 'user',
+            parts: [{ text: `${SYSTEM}\nReply with only a JSON object {"start": string|null, "end": string|null}, no other text.\n\nMessage: ${c.text}` }],
+          }],
+        }
+      : {
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{ role: 'user', parts: [{ text: c.text }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA },
+        },
+  );
   for (let attempt = 1; ; attempt++) {
     if (quotaHit) return failedRun();
     const t = performance.now();
@@ -206,7 +219,8 @@ async function gemini(c: Case): Promise<LlmRun> {
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
     let answer: Answer = { start: null, end: null };
     try {
-      answer = JSON.parse(text) as Answer;
+      // Gemma는 ```json 코드 블록이나 설명을 붙이기도 해서 첫 { … }만 꺼낸다
+      answer = JSON.parse(IS_GEMMA ? (text.match(/\{[\s\S]*?\}/)?.[0] ?? '') : text) as Answer;
     } catch {
       // 형식이 깨진 답은 오답으로 센다
     }
