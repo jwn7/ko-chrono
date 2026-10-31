@@ -23,3 +23,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # ESM과 CommonJS 둘 다 실제로 불러와지는지
+      - run: node -e "const { parse } = require('./dist/cjs/index.js'); if (!parse('내일')) process.exit(1)"
+      - run: node --input-type=module -e "import { parse } from './dist/index.js'; if (!parse('내일')) process.exit(1)"
