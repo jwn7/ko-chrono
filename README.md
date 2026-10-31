@@ -11,7 +11,7 @@
 
 <a href="https://jwn7.github.io/ko-chrono/"><img alt="playground 데모: 문장을 입력하면 날짜 부분이 형광펜으로 표시되고, 반복 일정·모호한 시각·마감·명절 연휴가 카드로 나온다" src="./docs/demo.gif" width="720"></a>
 
-**[▶ 브라우저에서 바로 해 보기](https://jwn7.github.io/ko-chrono/)**
+**[▶ 브라우저에서 바로 해 보기](https://jwn7.github.io/ko-chrono/)** · [English](./README.en.md)
 
 </div>
 

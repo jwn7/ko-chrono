@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 // GitHub 마크다운에서 "~까지 ... 3~5시"처럼 한 문단에 물결표가 둘 있으면 그 사이가 취소선이 된다.
 // 날짜 범위를 다루는 프로젝트라 문서에 ~가 많다. 코드 밖의 ~는 \~ 로 써야 한다.
-const DOCS = ['README.md', 'SPEC.md', 'bench/RESULTS.md'];
+const DOCS = ['README.md', 'README.en.md', 'SPEC.md', 'bench/RESULTS.md'];
 
 function unescapedTildes(md: string): string[] {
   const found: string[] = [];
