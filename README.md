@@ -266,7 +266,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 - [x] 명절·공휴일 (설 연휴, 추석 전날, 크리스마스) — 음력 명절은 한국천문연구원 자료가 있는 2025\~2028년
 - [x] 일반 음력 날짜 (음력 3월 3일) — 한국천문연구원 자료가 있는 2025\~2028년
 - [x] 모호성 정보 (`ambiguity`)
-- [ ] chrono-node `ko` 로케일 기여
+- [ ] chrono-node `ko` 로케일 기여 — 첫 PR 분량 준비됨 ([contrib/chrono-ko](./contrib/chrono-ko))
 
 ## 기여
 
