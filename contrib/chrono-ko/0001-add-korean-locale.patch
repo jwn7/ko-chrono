@@ -1,3 +1,54 @@
+From e8e07d192c7ef11a4bc4df079bc37afa5719bbb3 Mon Sep 17 00:00:00 2001
+From: jwn7 <ksyzing@naver.com>
+Date: Sat, 31 Oct 2026 20:47:48 +0900
+Subject: [PATCH 1/2] Add Korean (ko) locale
+
+Casual dates, weekdays (with relative weeks), standard dates,
+time expressions, and date-time / range merging.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ README.md                                     |  2 +-
+ src/index.ts                                  |  3 +-
+ src/locales/ko/constants.ts                   | 48 ++++++++++++++
+ src/locales/ko/index.ts                       | 54 +++++++++++++++
+ src/locales/ko/parsers/KOCasualDateParser.ts  | 36 ++++++++++
+ src/locales/ko/parsers/KOStandardParser.ts    | 32 +++++++++
+ .../ko/parsers/KOTimeExpressionParser.ts      | 58 ++++++++++++++++
+ src/locales/ko/parsers/KOWeekdayParser.ts     | 52 +++++++++++++++
+ .../ko/refiners/KOMergeDateRangeRefiner.ts    | 11 ++++
+ .../ko/refiners/KOMergeDateTimeRefiner.ts     | 11 ++++
+ test/ko/ko_casual.test.ts                     | 66 +++++++++++++++++++
+ test/ko/ko_standard.test.ts                   | 46 +++++++++++++
+ test/ko/ko_time_exp.test.ts                   | 58 ++++++++++++++++
+ test/ko/ko_weekday.test.ts                    | 59 +++++++++++++++++
+ 14 files changed, 534 insertions(+), 2 deletions(-)
+ create mode 100644 src/locales/ko/constants.ts
+ create mode 100644 src/locales/ko/index.ts
+ create mode 100644 src/locales/ko/parsers/KOCasualDateParser.ts
+ create mode 100644 src/locales/ko/parsers/KOStandardParser.ts
+ create mode 100644 src/locales/ko/parsers/KOTimeExpressionParser.ts
+ create mode 100644 src/locales/ko/parsers/KOWeekdayParser.ts
+ create mode 100644 src/locales/ko/refiners/KOMergeDateRangeRefiner.ts
+ create mode 100644 src/locales/ko/refiners/KOMergeDateTimeRefiner.ts
+ create mode 100644 test/ko/ko_casual.test.ts
+ create mode 100644 test/ko/ko_standard.test.ts
+ create mode 100644 test/ko/ko_time_exp.test.ts
+ create mode 100644 test/ko/ko_weekday.test.ts
+
+diff --git a/README.md b/README.md
+index ea9ceda..30f338b 100644
+--- a/README.md
++++ b/README.md
+@@ -212,7 +212,7 @@ chrono.en.GB.parseDate('6/10/2018');    // October 6th, 2018
+ chrono.ja.parseDate('昭和６４年１月７日'); 
+ ```
+ 
+-In addition to English, Chrono supports the following languages: `ar`, `fi`, `fr`, `id`, `it`, `ja`, `nl`, `ru`, `uk`, and `vi`. We also have partial support for `de`, `es`, `pt`, `sv`, `zh.hans`, and `zh.hant`.
++In addition to English, Chrono supports the following languages: `ar`, `fi`, `fr`, `id`, `it`, `ja`, `nl`, `ru`, `uk`, and `vi`. We also have partial support for `de`, `es`, `ko`, `pt`, `sv`, `zh.hans`, and `zh.hant`.
+ 
+ #### Importing specific locales
+ 
 diff --git a/src/index.ts b/src/index.ts
 index 08a77c8..390d225 100644
 --- a/src/index.ts
@@ -273,10 +324,10 @@ index 0000000..3937713
 +}
 diff --git a/src/locales/ko/parsers/KOWeekdayParser.ts b/src/locales/ko/parsers/KOWeekdayParser.ts
 new file mode 100644
-index 0000000..c66924e
+index 0000000..346b55b
 --- /dev/null
 +++ b/src/locales/ko/parsers/KOWeekdayParser.ts
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,52 @@
 +import { Parser, ParsingContext } from "../../../chrono";
 +import { ParsingComponents } from "../../../results";
 +import { Weekday } from "../../../types";
@@ -293,9 +344,7 @@ index 0000000..c66924e
 + * so it is only accepted right after a week word ("다음주 월").
 + */
 +const PATTERN = new RegExp(
-+    "(?:(?<week>지난|저번|이번|다다음|다음|담)\\s*주\\s*)?" +
-+        "(?<weekday>[일월화수목금토])" +
-+        "(?<suffix>요일|욜)?",
++    "(?:(?<week>지난|저번|이번|다다음|다음|담)\\s*주\\s*)?" + "(?<weekday>[일월화수목금토])" + "(?<suffix>요일|욜)?",
 +    "i"
 +);
 +
@@ -618,3 +667,95 @@ index 0000000..a1bd171
 +    // "월급" = "monthly salary"; a bare 월 means "month", not Monday
 +    testUnexpectedResult(chrono.ko, "월급");
 +});
+-- 
+2.45.1.windows.1
+
+
+From 04c89cecfd02a4bf048a71618a019f627c18128a Mon Sep 17 00:00:00 2001
+From: jwn7 <ksyzing@naver.com>
+Date: Sat, 31 Oct 2026 20:58:16 +0900
+Subject: [PATCH 2/2] Accept a bare weekday character only before a time,
+ particle, or end
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+"다음주 일정" (next week's schedule) and "다음주 일 많아" (lots of work
+next week) were parsed as next Sunday.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/locales/ko/parsers/KOWeekdayParser.ts | 16 ++++++++++++++--
+ test/ko/ko_weekday.test.ts                | 22 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/locales/ko/parsers/KOWeekdayParser.ts b/src/locales/ko/parsers/KOWeekdayParser.ts
+index 346b55b..5f21136 100644
+--- a/src/locales/ko/parsers/KOWeekdayParser.ts
++++ b/src/locales/ko/parsers/KOWeekdayParser.ts
+@@ -11,10 +11,22 @@ import { WEEK_OFFSET, WEEKDAY_OFFSET } from "../constants";
+  *   e.g. on Friday, "다음주 월요일" is 3 days later and "지난주 수요일" is 9 days earlier.
+  *
+  * A weekday must end with "요일" (or the casual "욜"). A single character such as "월" also means "month",
+- * so it is only accepted right after a week word ("다음주 월").
++ * so it is only accepted right after a week word ("다음주 월") and only when followed by the end of text,
++ * punctuation, a time ("다음주 월 2시", "담주 금 저녁" = Fri evening), another weekday ("수, 목" = Wed, Thu),
++ * or a particle ("금에" = on Fri, "월까지" = until Mon).
++ * Otherwise the character starts another word: "다음주 일정" (next week's schedule), "다음주 일 많아"
++ * (lots of work next week), "이번주 목 아파" (sore throat this week).
+  */
++const DAY_ALONE =
++    "(?=\\s*$|\\s*[,.!?~～)]|\\s*(?:\\d|오전|오후|새벽|아침|점심|낮(?!잠)|저녁|밤(?!새)|[일월화수목금토](?![가-힣]))" +
++    "|(?:에|엔|은|는|도|나|이나|쯤)(?![가-힣])|에는|까지|부터)";
++
+ const PATTERN = new RegExp(
+-    "(?:(?<week>지난|저번|이번|다다음|다음|담)\\s*주\\s*)?" + "(?<weekday>[일월화수목금토])" + "(?<suffix>요일|욜)?",
++    "(?:(?<week>지난|저번|이번|다다음|다음|담)\\s*주\\s*)?" +
++        "(?<weekday>[일월화수목금토])" +
++        "(?:(?<suffix>요일|욜)|" +
++        DAY_ALONE +
++        ")",
+     "i"
+ );
+ 
+diff --git a/test/ko/ko_weekday.test.ts b/test/ko/ko_weekday.test.ts
+index a1bd171..817b4b4 100644
+--- a/test/ko/ko_weekday.test.ts
++++ b/test/ko/ko_weekday.test.ts
+@@ -49,6 +49,18 @@ test("Test - Weekday in a relative week", function () {
+         expect(result.text).toBe("담주 월 2시");
+         expect(result.start).toBeDate(new Date(2012, 8 - 1, 13, 2));
+     });
++
++    // "다음주 금에 보자" = "see you on Fri next week" (에 = on)
++    testSingleCase(chrono.ko, "다음주 금에 보자", new Date(2012, 8 - 1, 10, 12), (result) => {
++        expect(result.text).toBe("다음주 금");
++        expect(result.start).toBeDate(new Date(2012, 8 - 1, 17, 12));
++    });
++
++    // "다음주 수, 목 가능" = "Wed or Thu next week works"
++    testSingleCase(chrono.ko, "다음주 수, 목 가능", new Date(2012, 8 - 1, 10, 12), (result) => {
++        expect(result.text).toBe("다음주 수");
++        expect(result.start).toBeDate(new Date(2012, 8 - 1, 15, 12));
++    });
+ });
+ 
+ test("Test - Negative cases", function () {
+@@ -56,4 +68,14 @@ test("Test - Negative cases", function () {
+     testUnexpectedResult(chrono.ko, "일정 공유");
+     // "월급" = "monthly salary"; a bare 월 means "month", not Monday
+     testUnexpectedResult(chrono.ko, "월급");
++    // After a week word, a bare weekday character must not start another word:
++    // "다음주 일정" = next week's schedule, "이번주 목표" = this week's goal, "지난주 토론" = last week's discussion
++    testUnexpectedResult(chrono.ko, "다음주 일정 공유");
++    testUnexpectedResult(chrono.ko, "이번주 목표");
++    testUnexpectedResult(chrono.ko, "지난주 토론 정리");
++    // ... even with a space: "다음주 일 많아" = lots of work next week, "이번주 목 아파" = sore throat this week,
++    // "다음주 화 났어" = got angry next week (화 = anger)
++    testUnexpectedResult(chrono.ko, "다음주 일 많아");
++    testUnexpectedResult(chrono.ko, "이번주 목 아파");
++    testUnexpectedResult(chrono.ko, "다음주 화 났어");
+ });
+-- 
+2.45.1.windows.1
+
