@@ -178,10 +178,9 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     // "작년", "내년"처럼 연도만 있으면 1월 1일. "내년 이맘때", "1년 뒤"는 오늘 날짜 유지
     let m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();
     // "5일까지"처럼 일만 있으면: 오늘이 그날을 넘었으면 다음 달, 아니면 이번 달 (오늘 포함).
-    // 그 달에 없는 날("31일")이면 그날이 있는 다음 달로
+    // 그 달에 없는 날("11월에 31일")은 아래에서 null
     if (!hasYear && c.month === undefined && c.day !== undefined && c.monthOffset === undefined && c.nthWeek === undefined) {
       if (c.day < ref.getDate()) m0 += 1;
-      while (c.day > lastDayOfMonth(y, m0)) m0 += 1;
       y += Math.floor(m0 / 12);
       m0 %= 12;
     }

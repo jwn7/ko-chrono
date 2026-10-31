@@ -300,8 +300,10 @@ describe('절대 날짜', () => {
   it('5일까지 (1일에 말하면 이번 달)', () =>
     expect(parse('5일까지 주세요', { referenceDate: d(2026, 11, 1, 10) })!.end).toEqual(d(2026, 11, 5, 23, 59)));
   it('5일까지 (지났으면 다음 달)', () => expect(p('5일까지 주세요')!.end).toEqual(d(2026, 11, 5, 23, 59)));
-  it('31일 (이번 달에 없으면 그날이 있는 다음 달)', () =>
-    expect(parse('31일에 보자', { referenceDate: d(2026, 11, 15) })!.date).toEqual(d(2026, 12, 31)));
+  // 그 달에 없는 날이면 추측하지 않는다 (chrono-node처럼 보수적으로)
+  it('31일 (이번 달에 없으면 null)', () => expect(parse('31일에 보자', { referenceDate: d(2026, 11, 15) })).toBeNull());
+  it('30일 (지나서 넘어간 다음 달에 없으면 null)', () =>
+    expect(parse('30일까지', { referenceDate: d(2027, 1, 31) })).toBeNull());
 });
 
 describe('요일/날짜 + 시각 단어', () => {
