@@ -1,6 +1,6 @@
 {
   "name": "ko-chrono",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "한국어 자연어 날짜/시간 파서 — '다음주 화요일 오후 3시' → Date",
   "type": "module",
   "main": "./dist/cjs/index.js",
