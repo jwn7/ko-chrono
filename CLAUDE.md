@@ -4,7 +4,7 @@
 chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"를 다루면 우리는 "문장 속 시간"을 다룬다.
 
 ## 현재 상태
-- npm 배포: 0.3.0 (2026-10-31, 업무용 한자어 빠진 빌드). 저장소는 0.3.1 준비 완료 — `npm publish`는 사용자가. publish 때 prepublishOnly가 빌드·테스트를 자동으로 돌린다. 테스트 464개 (tests/*.test.ts: 파서·메신저 예문·parseEvent·음력 표 검증·퍼즈·문서). `npm test`로 확인.
+- npm에 배포 중 (`npm view ko-chrono version`). 테스트는 `npm test` (tests/*.test.ts: 파서·메신저 예문·parseEvent·음력 표 검증·퍼즈·문서).
 - 의존성: 런타임 0개. devDependencies는 typescript, vitest뿐. 이 상태를 유지한다 (런타임 의존성 추가 금지).
 
 ## 아키텍처 (src/)
@@ -55,17 +55,6 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 33. 업무용 한자어: 금일=오늘, 명일·익일=내일, 작일=어제 / 금주=이번주, 차주·익주=다음주, 전주=지난주, 전전주·차차주 / 금월·익월·차월·전월 / 익년. 다른 뜻과 겹치므로 주(週)는 "요일/욜"이 붙거나 뒤에 날짜 말(내로·중으로·까지·에…)이 올 때만. "금주"는 금주(禁酒)와 겹쳐서 "금주에"도 제외, "전주"는 도시와 겹쳐서 요일이 붙을 때만, "차주에게"(車主)·"전월세"는 제외.
 (11~33은 2026-10-31 사용자 위임으로 Claude가 정함)
 
-## v0.1 범위 (이번 주말)
-포함: 오늘/내일/모레/글피/어제/그저께, N일·주·달·시간·분 뒤/전, 열흘/보름, 이번주/다음주/다다음주/지난주 + 요일, 요일 단독, M월 D일, YYYY년, M/D, YYYY-MM-DD, N일 단독, 이번달/다음달/지난달 + 초/중순/말, M월 말, 오전/오후/새벽/아침/저녁/밤/낮 + N시 (반/N분), HH:MM, 정오/자정/점심/아침/저녁, ~까지/이내, A부터 B까지, 문장 중간 추출, 복수 추출.
-
-**v0.2 후보 (일정 여유가 있어 이번 주말에도 진행 가능 — 2026-10-31 사용자 결정):**
-- 반복 일정 (매주, 매달, 격주)
-- 주어/제목 분리 ("치과 예약" 떼어내기)
-- 공휴일/명절 기준 표현 (설 연휴, 추석 전날)
-- 음력
-- 확률적/모호성 해석
-- 연도 두 자리 ("26년") — 구현됨
-
 ## 코딩 규칙
 - TypeScript strict. `any` 금지.
 - 정규식에는 반드시 위에 한 줄 주석으로 매칭 예시를 쓴다.
@@ -79,21 +68,8 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 3. 애매한 한국어 해석(예: "이번주 일요일"이 일요일 시작 주에서 뭔지)은 **구현하지 말고 먼저 묻는다.** 답을 받으면 위 "확정된 규칙"에 추가한다.
 4. 테스트가 깨지면 테스트를 고치지 말고 왜 깨졌는지 먼저 설명한다.
 
-## 주말 체크리스트
-### 토요일
-- [x] `npm install && npm test` 통과 확인 (342개)
-- [x] SPEC.md의 "미구현" 섹션에서 패턴 그룹 골라 구현 (테스트 먼저) — 전부 구현, 미구현 표 비어 있음
-- [x] 실제 카톡/메신저에서 날짜 문장 50개 수집 → tests/real-world.test.ts — Claude 작성 예문 110개. **실제 수집 문장은 아직 없음, 계속 보강**
-- [x] 수집한 문장 중 실패하는 것 고치기
-### 일요일 오전
-- [x] 엣지 케이스: 연말/월말 넘어감, 윤년, 24시, "오후 12시"
-- [x] API 최종 확정, JSDoc 보강
-### 일요일 오후 — **패턴 추가 금지. 아래만.**
-- [x] README 완성 (예시 20줄, es-hangul 스타일)
-- [x] playground/index.html 동작 확인 (`npm run build` 후 열기) — `npm run playground`
-- [x] `npm publish` — ko-chrono@0.1.0 배포 (10/31). npm 2FA는 보안키(패스키)만 지원, publish 때 브라우저 승인
-- [x] GitHub 공개 — github.com/jwn7/ko-chrono (public, MIT)
-- [x] GIF — docs/demo.gif (README 상단)
-- [ ] GeekNews 게시 — **사용자가 실행** (X는 하지 않기로)
-- [ ] chrono-node 한국어 PR: contrib/chrono-ko/README.md 순서대로 fork → 패치 적용 → npm test·prettier·eslint → PR — **사용자가 실행**
-- [x] playground 공개 — https://jwn7.github.io/ko-chrono/ (src·playground가 바뀌면 push 때 자동 배포)
+## 배포·유지보수
+- 배포: `package.json` 버전을 올리고 `npm publish`. `prepublishOnly`가 빌드와 테스트를 자동으로 돌리고, 실패하면 올라가지 않는다.
+- playground(https://jwn7.github.io/ko-chrono/)는 `src/`·`playground/`가 바뀐 채로 main에 push하면 자동 배포된다.
+- 음력 표: 한국천문연구원이 새 연도를 공개하면 `util/lunarHolidays.ts`에 그 해 초하루 목록을, `tests/lunar.test.ts`에 그 해 설날·부처님 오신 날·추석을 추가한다.
+- README·SPEC의 코드 밖 `~`는 `\~`로 쓴다 (GitHub에서 취소선이 된다). `tests/docs.test.ts`가 검사한다.
