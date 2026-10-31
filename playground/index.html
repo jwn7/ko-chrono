@@ -251,7 +251,8 @@
     } else {
       const event = parseEvent(text, opts);
       // 대화("…볼까?", "보자", "가요")는 제목 분리가 의미 없다. "치과", "보고서 제출"처럼 할 일로 보일 때만
-      const chatty = /(?:[?？]|[자요까지해봐야다네죠ㄱ])[\s!.~]*$/.test(event.title);
+      const chatty = /(?:[?？]|[자요까지해봐야다네죠ㄱ])[\s!.~]*$/.test(event.title)
+        || /^(?:그럼|그러면|혹시|아니면|근데|그래서|우리|저희)$/.test(event.title);
       const title = event.title && event.title !== text.trim() && !chatty
         ? `<div class="event">할 일로 쓰면 → 제목 <b>${esc(event.title)}</b></div>` : '';
       $('out').innerHTML = title + results.map((r) => card(r, ref)).join('');
