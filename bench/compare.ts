@@ -163,6 +163,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // 남은 문장은 보내지 않는다. 받은 답은 캐시에 있으니 한도가 풀린 뒤 다시 돌리면 이어서 한다.
 const MAX_WAIT_MS = 90_000;
 let quotaHit = false;
+let anySuccess = false;
 const failedRun = (): LlmRun => ({
   answer: { start: null, end: null }, ms: NaN, inputTokens: 0, outputTokens: 0, servedBy: MODEL, failed: true,
 });
@@ -196,12 +197,17 @@ async function gemini(c: Case): Promise<LlmRun> {
     });
     const ms = performance.now() - t;
     const json = (await res.json()) as GeminiResponse;
-    // 서버 내부 오류(500)는 일시 장애일 수 있어 3번까지 다시. 계속되면 요청 형식 문제일 가능성이 커서 멈춘다
+    // 서버 내부 오류(500)는 일시 장애일 수 있어 3번까지 다시. 계속될 때, 한 번도 성공한 적이 없으면
+    // 요청 형식 문제일 가능성이 커서 멈추고, 이미 성공한 적이 있으면 이 문장만 실패로 두고 계속한다
     if (res.status === 500) {
       if (attempt < 3) {
         process.stderr.write(`  500: 10초 기다렸다 다시 (${c.text})\n`);
         await sleep(10_000);
         continue;
+      }
+      if (anySuccess) {
+        process.stderr.write(`  500: 포기, 응답 없음으로 기록 (${c.text})\n`);
+        return failedRun();
       }
       throw new Error(
         `Gemini 500이 계속됨: ${json.error?.message ?? ''}\n` +
@@ -236,6 +242,7 @@ async function gemini(c: Case): Promise<LlmRun> {
     } catch {
       // 형식이 깨진 답은 오답으로 센다
     }
+    anySuccess = true;
     const u = json.usageMetadata ?? {};
     return {
       answer,
