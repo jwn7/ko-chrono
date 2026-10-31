@@ -1,5 +1,6 @@
 import type { Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
 import { toRRule } from './parsers/recurrence.js';
+import { LUNAR_HOLIDAYS } from './util/lunarHolidays.js';
 
 function startOfWeek(d: Date, weekStart: WeekStart): Date {
   const r = new Date(d);
@@ -141,9 +142,30 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   let dateSet = false;
   const hasTime = c.hour !== undefined || c.hourOffset !== undefined || c.minuteOffset !== undefined;
 
-  // 1. 절대 날짜
+  // 0. 음력 명절 (규칙 29): 연도를 말했으면 그 해, 아니면 올해 것이 (연휴까지) 지났을 때 내년.
+  //    공식 자료가 없는 연도는 null
   const hasYear = c.year !== undefined || c.yearOffset !== undefined;
-  if (hasYear || c.month !== undefined || c.day !== undefined) {
+  if (c.lunar) {
+    const said = c.year ?? (c.yearOffset !== undefined ? ref.getFullYear() + c.yearOffset : undefined);
+    const tail = (c.dayOffset ?? 0) + (c.durationDays ? c.durationDays - 1 : 0);
+    const years = said !== undefined ? [said] : [ref.getFullYear(), ref.getFullYear() + 1];
+    let found: Date | null = null;
+    for (const y of years) {
+      const md = LUNAR_HOLIDAYS[y]?.[c.lunar];
+      if (!md) break;
+      const lastMoment = new Date(y, md[0] - 1, md[1] + tail, 23, 59);
+      if (said !== undefined || lastMoment >= ref) {
+        found = new Date(y, md[0] - 1, md[1]);
+        break;
+      }
+    }
+    if (!found) return null;
+    d = found;
+    dateSet = true;
+  }
+
+  // 1. 절대 날짜
+  if (!c.lunar && (hasYear || c.month !== undefined || c.day !== undefined)) {
     let y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
     // "작년", "내년"처럼 연도만 있으면 1월 1일. "내년 이맘때", "1년 뒤"는 오늘 날짜 유지
     const m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();

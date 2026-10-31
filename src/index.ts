@@ -8,6 +8,7 @@ import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
 import { duration } from './parsers/duration.js';
 import { recurrence } from './parsers/recurrence.js';
+import { holiday } from './parsers/holiday.js';
 import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
 import { fromWallClock, toWallClock } from './util/timezone.js';
 import { toEvent, type ParsedEvent } from './event.js';
@@ -15,7 +16,7 @@ import { toEvent, type ParsedEvent } from './event.js';
 export type { Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
 export type { ParsedEvent } from './event.js';
 
-const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence];
+const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence, holiday];
 
 // "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
 const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로)/;
