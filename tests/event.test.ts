@@ -10,6 +10,8 @@ const d = (y: number, m: number, day: number, h = 0, min = 0) => new Date(y, m -
 describe('parseEvent: 제목 분리', () => {
   it('내일 오후 3시 치과', () => expect(ev('내일 오후 3시 치과')).toEqual({ title: '치과', date: d(2026, 10, 31, 15), hasTime: true }));
   it('치과 예약 내일 3시', () => expect(ev('치과 예약 내일 3시')).toMatchObject({ title: '치과 예약', date: d(2026, 10, 31, 15) }));
+  it('치과 내일 3시 (모호성도 전달)', () =>
+    expect(ev('치과 내일 3시').ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 31, 3)] }));
   it('다음주 금요일까지 보고서 제출', () =>
     expect(ev('다음주 금요일까지 보고서 제출')).toEqual({
       title: '보고서 제출',

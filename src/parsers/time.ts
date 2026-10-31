@@ -117,12 +117,14 @@ export const time: Parser = (text) => {
   }
   for (const m of text.matchAll(HALF_WORD)) {
     if (!take(m.index!, m[0].length)) continue;
-    out.push({ text: m[0], index: m.index!, components: { hour: WORD_HOUR[m[1]], minute: 0, meridiem: true } });
+    out.push({ text: m[0], index: m.index!, components: { hour: WORD_HOUR[m[1]], minute: 0, meridiem: true, approximate: true } });
   }
   for (const m of text.matchAll(WORD)) {
     if (!take(m.index!, m[0].length)) continue;
     const c: Fragment['components'] = { hour: WORD_HOUR[m[1]], minute: 0, meridiem: true };
     if (m[1] === '자정') c.midnight = true;
+    // 정오·자정은 정확한 시각, 나머지(아침·저녁·밤·점심·낮·퇴근)는 관례
+    else if (m[1] !== '정오') c.approximate = true;
     out.push({ text: m[0], index: m.index!, components: c });
   }
   return out;

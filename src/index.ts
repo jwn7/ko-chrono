@@ -13,7 +13,7 @@ import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, 
 import { fromWallClock, toWallClock } from './util/timezone.js';
 import { toEvent, type ParsedEvent } from './event.js';
 
-export type { Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
+export type { Ambiguity, Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
 export type { ParsedEvent } from './event.js';
 
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence, holiday];
@@ -64,6 +64,9 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
   return local.map((r) => {
     const out: ParseResult = { ...r, date: fromWallClock(r.date, timezone) };
     if (r.end) out.end = fromWallClock(r.end, timezone);
+    if (r.ambiguity) {
+      out.ambiguity = { ...r.ambiguity, alternatives: r.ambiguity.alternatives.map((a) => fromWallClock(a, timezone)) };
+    }
     return out;
   });
 }

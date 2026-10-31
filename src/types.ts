@@ -37,6 +37,8 @@ export interface Components {
   weekdayDir?: 'past' | 'next';
   /** "1년 뒤", "내년 이맘때": 연/월/주 이동 시 기준일의 날짜를 유지 */
   sameDay?: boolean;
+  /** "저녁", "아침"처럼 관례로 정한 시각 */
+  approximate?: boolean;
   /** "내일 이 시간": 기준 시각의 시:분을 쓴다 */
   sameTime?: boolean;
   /** 음력 명절 (설날·추석·부처님 오신 날). 양력 날짜는 resolve가 util/lunarHolidays 표에서 찾는다 */
@@ -95,6 +97,17 @@ export interface Fragment {
   components: Components;
 }
 
+/**
+ * 해석이 갈릴 수 있다는 표시 (규칙 31). 기본 해석은 결과의 date(마감이면 end)이고, 다른 후보가 alternatives.
+ * - meridiem: 오전/오후 없는 시각 ("3시" → 15시, 후보 3시)
+ * - next-weekday: "다음 토요일"이 이번 주의 다음 토요일인지 다음 주 토요일인지
+ * - approximate-time: "저녁", "아침"처럼 관례로 정한 시각 (후보 없음)
+ */
+export interface Ambiguity {
+  reason: 'meridiem' | 'next-weekday' | 'approximate-time';
+  alternatives: Date[];
+}
+
 export interface ParseResult {
   /** 해석된 시각 (구간이면 시작) */
   date: Date;
@@ -108,6 +121,8 @@ export interface ParseResult {
   hasTime: boolean;
   /** 반복 일정이면 그 규칙. date는 기준 시각 이후 첫 발생 */
   recurrence?: Recurrence;
+  /** 해석이 갈릴 수 있으면 그 이유와 다른 후보. 사용자에게 되묻거나 LLM에 넘길지 판단할 때 쓴다 */
+  ambiguity?: Ambiguity;
 }
 
 export type Parser = (text: string) => Fragment[];

@@ -674,6 +674,35 @@ describe('퍼즈 테스트가 찾은 버그', () => {
   it('302028년 뒤 (Invalid Date 대신 null)', () => expect(p('302028년 뒤')).toBeNull());
 });
 
+describe('모호성 정보 (규칙 31)', () => {
+  it('3시에 보자 → 15시, 후보 새벽 3시', () => {
+    const r = p('3시에 보자');
+    expect(r!.date).toEqual(d(2026, 10, 30, 15));
+    expect(r!.ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 31, 3)] });
+  });
+  it('내일 7시 → 7시, 후보 19시', () =>
+    expect(p('내일 7시')!.ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 31, 19)] }));
+  it('12시 → 정오, 후보 자정', () =>
+    expect(p('12시')!.ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 31, 0)] }));
+  it('5시까지 → 마감의 후보', () =>
+    expect(p('5시까지 보내줘')!.ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 31, 5)] }));
+  it('오후 3시 (모호하지 않음)', () => expect(p('오후 3시')!.ambiguity).toBeUndefined());
+  it('15:30 (모호하지 않음)', () => expect(p('15:30')!.ambiguity).toBeUndefined());
+  it('다음주 화요일 오후 3시 (모호하지 않음)', () => expect(p('다음주 화요일 오후 3시')!.ambiguity).toBeUndefined());
+  it('다음 토요일 → 내일, 후보 다음 주 토요일', () => {
+    const r = p('다음 토요일');
+    expect(r!.date).toEqual(d(2026, 10, 31));
+    expect(r!.ambiguity).toEqual({ reason: 'next-weekday', alternatives: [d(2026, 11, 7)] });
+  });
+  it('다음 금요일 (두 해석이 같으면 모호하지 않음)', () => expect(p('다음 금요일')!.ambiguity).toBeUndefined());
+  it('내일 저녁 → 관례 시각', () =>
+    expect(p('내일 저녁')!.ambiguity).toEqual({ reason: 'approximate-time', alternatives: [] }));
+  it('timezone에서도 후보가 실제 시점으로 바뀐다', () => {
+    const r = parse('3시에 보자', { referenceDate: new Date(Date.UTC(2026, 9, 30, 5)), timezone: 'Asia/Seoul' });
+    expect(r!.ambiguity!.alternatives).toEqual([new Date(Date.UTC(2026, 9, 30, 18))]);
+  });
+});
+
 describe('timezone 옵션', () => {
   // 기준 시각 ref = 2026-10-30 05:00 UTC = 서울 14:00 = 뉴욕 01:00 (EDT, 11/1에 EST로 바뀜)
   // 결과는 기계 시간대와 무관한 실제 시점이어야 한다 (서버가 UTC여도 같은 답)

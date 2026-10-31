@@ -1,4 +1,4 @@
-import type { Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
+import type { Ambiguity, Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
 import { toRRule } from './parsers/recurrence.js';
 import { LUNAR_HOLIDAYS } from './util/lunarHolidays.js';
 
@@ -274,11 +274,13 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
 
   // 안전장치: 어떤 경로로든 계산이 깨진 날짜는 내보내지 않는다
   if (Number.isNaN(d.getTime())) return null;
+  const ambiguity = ambiguityOf(c, d, dateSet, opts);
 
   const first = group[0];
   const last = group[group.length - 1];
   // text는 parseAll()에서 원문 slice로 채운다. _end는 그때 쓰는 내부 값.
   const result: ParseResult = { date: d, text: '', index: first.index, hasTime };
+  if (ambiguity) result.ambiguity = ambiguity;
   (result as ParseResult & { _end: number })._end = last.index + last.text.length;
 
   // "오늘부터 3일간", "3시부터 2시간 동안": 시작일을 포함한 기간의 끝
@@ -381,6 +383,29 @@ function resolveRecurrence(group: Fragment[], c: Components, opts: ResolveOption
   };
   (result as ParseResult & { _end: number })._end = last.index + last.text.length;
   return result;
+}
+
+/** 규칙 31: 해석이 갈릴 수 있는 지점과 다른 후보 */
+function ambiguityOf(c: Components, d: Date, dateSet: boolean, opts: ResolveOptions): Ambiguity | undefined {
+  const ref = opts.referenceDate;
+  // 오전/오후 없는 1~12시: 반대쪽 12시간이 후보 (날짜가 없으면 규칙 4대로 다음 발생)
+  if (c.hour !== undefined && !c.meridiem && !c.midnight && c.hour >= 1 && c.hour <= 12) {
+    const used = clockHour(c);
+    const altHour = used === 12 ? 0 : used < 12 ? used + 12 : used - 12;
+    const alt = new Date(dateSet ? d : ref);
+    alt.setHours(altHour, c.minute ?? 0, 0, 0);
+    if (!dateSet && alt < ref) alt.setDate(alt.getDate() + 1);
+    return { reason: 'meridiem', alternatives: [alt] };
+  }
+  // "다음 토요일": 규칙 23(오늘 제외 가장 가까운)과 "다음 주 토요일"이 다르면 후보로
+  if (c.weekdayDir === 'next' && c.weekday !== undefined) {
+    const alt = startOfWeek(ref, opts.weekStart);
+    alt.setDate(alt.getDate() + 7 + (opts.weekStart === 'monday' ? (c.weekday + 6) % 7 : c.weekday));
+    alt.setHours(d.getHours(), d.getMinutes(), 0, 0);
+    if (alt.getTime() !== d.getTime()) return { reason: 'next-weekday', alternatives: [alt] };
+  }
+  if (c.approximate) return { reason: 'approximate-time', alternatives: [] };
+  return undefined;
 }
 
 function partDay(y: number, m0: number, part: NonNullable<Components['monthPart']>): number {

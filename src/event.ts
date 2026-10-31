@@ -1,4 +1,4 @@
-import type { ParseResult, Recurrence } from './types.js';
+import type { Ambiguity, ParseResult, Recurrence } from './types.js';
 
 /** parseEvent()의 결과: 할 일·일정 한 줄을 제목과 시점으로 나눈 것 */
 export interface ParsedEvent {
@@ -11,6 +11,8 @@ export interface ParsedEvent {
   hasTime: boolean;
   /** 반복 일정이면 그 규칙 */
   recurrence?: Recurrence;
+  /** 해석이 갈릴 수 있으면 그 이유와 다른 후보 ("3시" → 15시, 후보 3시) */
+  ambiguity?: Ambiguity;
 }
 
 // 날짜 바로 뒤에 붙은 조사: "3시에", "모레까지는", "주말엔"
@@ -38,5 +40,6 @@ export function toEvent(text: string, results: ParseResult[]): ParsedEvent {
   const event: ParsedEvent = { title, date: first.date, hasTime: first.hasTime };
   if (first.end) event.end = first.end;
   if (first.recurrence) event.recurrence = first.recurrence;
+  if (first.ambiguity) event.ambiguity = first.ambiguity;
   return event;
 }

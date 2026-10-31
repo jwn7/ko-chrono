@@ -88,6 +88,26 @@ parseEvent('우유 사기');
 // { title: '우유 사기', date: null, hasTime: false }
 ```
 
+### 애매한 해석: `ambiguity`
+
+"3시"가 오후인지 새벽인지처럼 해석이 갈릴 수 있으면, 기본 해석은 그대로 두고 다른 후보를 함께 알려 줍니다.
+사용자에게 되묻거나, 이런 문장만 LLM에 넘길 때 쓰면 됩니다.
+
+```ts
+const r = parse('3시에 보자');
+// r.date      → 오늘 15:00 (오전/오후가 없는 1~6시는 오후로)
+// r.ambiguity → { reason: 'meridiem', alternatives: [내일 03:00] }
+
+if (!r) askLLM(text);                                 // 날짜를 못 찾음
+else if (r.ambiguity?.alternatives.length) confirm(r);  // "오후 3시 맞으세요?"
+```
+
+| `reason` | 언제 | `alternatives` |
+|---|---|---|
+| `meridiem` | 오전/오후 없는 1\~12시 ("3시", "내일 7시") | 반대쪽 12시간 |
+| `next-weekday` | "다음 토요일"이 이번 주 토요일일 수도, 다음 주 토요일일 수도 | 다른 쪽 날짜 |
+| `approximate-time` | "저녁"(19시), "아침"(8시)처럼 관례로 정한 시각 | 없음 |
+
 ### 반복 일정
 
 `recurrence.rrule`은 [RFC 5545 RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)이라 Google·Apple 캘린더, iCal에 그대로 넣을 수 있습니다. `date`는 기준 시각 이후 첫 발생입니다.
@@ -121,6 +141,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 | `index` | 문장 안에서의 위치 |
 | `hasTime` | 시각까지 말했는지. `false`면 `date`는 그날 `defaultHour`시 |
 | `recurrence` | 반복 일정이면 규칙 (`freq`, `interval`, `byWeekday`, …, `rrule`) |
+| `ambiguity` | 해석이 갈릴 수 있으면 `{ reason, alternatives }` |
 
 ### 옵션
 
@@ -232,7 +253,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 | 시제·문맥 ("깨서 못 잤어") | 모름 | 앎 |
 | 처음 보는 표현 | 못 함 (`null`) | 대체로 함 |
 
-유료 티어나 다른 모델이면 LLM 쪽이 더 빠를 수 있지만, 네트워크 왕복만으로도 ko-chrono보다 수천 배 느립니다. 정확도는 비슷한 수준이고 차이의 절반은 "저녁이 몇 시냐" 같은 관례 차이였습니다. 규칙으로 풀리는 날짜는 ko-chrono로, `null`이 나오거나 문맥이 필요한 문장만 LLM으로 보내는 조합을 권합니다.
+유료 티어나 다른 모델이면 LLM 쪽이 더 빠를 수 있지만, 네트워크 왕복만으로도 ko-chrono보다 수천 배 느립니다. 정확도는 비슷한 수준이고 차이의 절반은 "저녁이 몇 시냐" 같은 관례 차이였습니다. 규칙으로 풀리는 날짜는 ko-chrono로, `null`이 나오거나 `ambiguity`가 있는 문장만 LLM으로 보내는 조합을 권합니다.
 
 <br>
 

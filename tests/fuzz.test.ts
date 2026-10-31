@@ -49,6 +49,7 @@ describe('무작위 문장 불변식', () => {
         for (const r of parseAll(text, { referenceDate: ref })) {
           if (!valid(r.date)) bad.push(`Invalid date: ${JSON.stringify(text)}`);
           if (r.end && !valid(r.end)) bad.push(`Invalid end: ${JSON.stringify(text)}`);
+          if (r.ambiguity?.alternatives.some((a) => !valid(a))) bad.push(`Invalid alternative: ${JSON.stringify(text)}`);
           if (r.end && r.end < r.date) bad.push(`end < date: ${JSON.stringify(text)} → ${r.date.toISOString()} ~ ${r.end.toISOString()}`);
           if (text.slice(r.index, r.index + r.text.length) !== r.text)
             bad.push(`text/index 불일치: ${JSON.stringify(text)} index=${r.index} text=${JSON.stringify(r.text)}`);
