@@ -65,6 +65,8 @@ parseEvent('내일 오후 3시에 강남역에서 친구 만나기');
 ```ts
 parse('매주 월수금 오전 7시 운동')?.recurrence?.rrule;  // 'FREQ=WEEKLY;BYDAY=MO,WE,FR'
 parse('매달 마지막 주 금요일 회식')?.recurrence?.rrule; // 'FREQ=MONTHLY;BYDAY=-1FR'
+parse('다음달까지 매주 월요일 9시')?.recurrence?.rrule; // 'FREQ=WEEKLY;BYDAY=MO;UNTIL=20261130T235900'
+parse('매주 수요일 2시, 총 8회')?.recurrence?.rrule;   // 'FREQ=WEEKLY;BYDAY=WE;COUNT=8'
 ```
 
 ### 애매하면 알려 주기
@@ -118,6 +120,7 @@ parse('내일 오후 3시', { timezone: 'Asia/Seoul' });  // 서버 시간대와
 | 음력 | 음력 3월 3일 · 음력 윤5월 1일 · 2028년 음력 9월 9일 |
 | 업무용 한자어 | 금일 · 명일 · 익일 · 작일 · 금주 · 차주 · 전주 수요일 · 익월 초 · 금월 말까지 · 익년 |
 | 반복 | 매일 · 매주 월수금 · 매주 월\~금 · 격주 · 평일마다 · 매달 15일 · 매월 말일 · 매달 마지막 주 금요일 · 매년 3월 1일 · 2시간마다 |
+| 반복의 시작·끝 | 다음달까지 매주 월요일 · 다음주부터 매일 · 10주 동안 매주 화요일 · 총 8회 · 10번 반복 · 매주 화목 오후 3\~5시 |
 | 문장 | 띄어쓰기 생략 · 조사(은·는·도) · 어림말(쯤·경·께) · 여러 개 추출 |
 
 입력별 결과는 [SPEC.md](./SPEC.md)에 모두 있습니다.
@@ -188,7 +191,7 @@ parse('내일 오후 3시', { timezone: 'Asia/Seoul' });  // 서버 시간대와
 | `text` | 문장에서 찾은 부분 |
 | `index` | 문장 안에서의 위치 |
 | `hasTime` | 시각까지 말했는지. `false`면 `date`는 그날 `defaultHour`시 |
-| `recurrence` | 반복 일정이면 `{ freq, interval, byWeekday, …, rrule }` |
+| `recurrence` | 반복 일정이면 `{ freq, interval, byWeekday, …, until?, count?, rrule }` |
 | `ambiguity` | 해석이 갈리면 `{ reason, alternatives }` |
 
 | `ambiguity.reason` | 언제 |

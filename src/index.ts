@@ -7,10 +7,11 @@ import { relativeMonth } from './parsers/relativeMonth.js';
 import { relativeYear } from './parsers/relativeYear.js';
 import { time } from './parsers/time.js';
 import { duration } from './parsers/duration.js';
-import { recurrence } from './parsers/recurrence.js';
+import { recurrence, toRRule } from './parsers/recurrence.js';
 import { holiday } from './parsers/holiday.js';
 import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
 import { fromWallClock, toWallClock } from './util/timezone.js';
+import { parseKoreanNumber } from './util/number.js';
 import { toEvent, type ParsedEvent } from './event.js';
 
 export type { Ambiguity, Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
@@ -23,6 +24,12 @@ const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로)/;
 const FROM = /^\s*(부터|~)\s*/;
 // "이번 주 내내" → 그 기간 전체
 const WHOLE = /^\s*내내/;
+// 반복 일정과 그 앞뒤 날짜 사이 (규칙 34): "다음달까지 매주 월요일", "매주 월요일, 12월 20일까지"
+const GAP = /^[\s,]*$/;
+// "다음주부터 매주 월요일"
+const FROM_GAP = /^\s*부터[\s,]*$/;
+// "총 8회", "10번 반복", "총 열 번". "매일 3번"은 하루 횟수일 수 있어 "총"이나 "반복"이 있을 때만
+const COUNT = /^[\s,]*(?:총\s*(\d{1,3}|[한두세네다섯여섯일곱여덟아홉열스무]+)\s*(?:번|회)(?:\s*반복)?|(\d{1,3}|[한두세네다섯여섯일곱여덟아홉열스무]+)\s*(?:번|회)\s*반복)/;
 
 function withDefaults(opts?: ParseOptions): ResolveOptions {
   return {
@@ -64,6 +71,8 @@ export function parseAll(text: string, options?: ParseOptions): ParseResult[] {
   return local.map((r) => {
     const out: ParseResult = { ...r, date: fromWallClock(r.date, timezone) };
     if (r.end) out.end = fromWallClock(r.end, timezone);
+    // rrule의 UNTIL은 벽시계 그대로 두고, Date 값만 실제 시점으로
+    if (r.recurrence?.until) out.recurrence = { ...r.recurrence, until: fromWallClock(r.recurrence.until, timezone) };
     if (r.ambiguity) {
       out.ambiguity = { ...r.ambiguity, alternatives: r.ambiguity.alternatives.map((a) => fromWallClock(a, timezone)) };
     }
@@ -77,6 +86,7 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
   const groups = groupFragments(frags, text);
   const results: ParseResult[] = [];
   const comps: Components[] = [];
+  const resultGroups: Fragment[][] = [];
 
   for (const g of groups) {
     const last = g[g.length - 1];
@@ -97,11 +107,16 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
     r.text = raw.trim();
     results.push(r);
     comps.push(merge(g.map((f) => f.components)));
+    resultGroups.push(g);
   }
 
   // "A부터 B까지", "A~B" → 하나의 구간으로 합침
   const merged: ParseResult[] = [];
+  const mergedGroups: Fragment[][] = [];
+  const mergedComps: Components[] = [];
   for (let i = 0; i < results.length; i++) {
+    mergedGroups.push(resultGroups[i]);
+    mergedComps.push(comps[i]);
     const a = results[i], b = results[i + 1];
     const from = FROM.exec(text.slice(a.index + a.text.length));
     // "~"는 바로 뒤에 B가 붙어 있을 때만. "부터"는 B가 "까지"로 끝나거나,
@@ -137,7 +152,83 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
       merged.push(a);
     }
   }
-  return merged;
+  return bindRecurrence(text, merged, mergedGroups, mergedComps, opts);
+}
+
+/**
+ * 반복 일정 앞뒤의 날짜를 시작·끝으로 묶는다 (규칙 34).
+ * - 앞이나 뒤의 마감·구간 ("다음달까지", "11월 1일부터 12월 31일까지") → 그 시작 이후 첫 발생, 끝은 UNTIL
+ * - 앞의 "A부터" → A 이후 첫 발생
+ * - 뒤의 "총 N회", "N번 반복" → COUNT
+ * 끝이 첫 발생보다 앞이면 묶지 않는다 ("어제까지 매주 월요일").
+ */
+function bindRecurrence(
+  text: string,
+  results: ParseResult[],
+  groups: Fragment[][],
+  comps: Components[],
+  opts: ResolveOptions,
+): ParseResult[] {
+  const out: ParseResult[] = [];
+  for (let i = 0; i < results.length; i++) {
+    let r = results[i];
+    if (!r.recurrence) {
+      out.push(r);
+      continue;
+    }
+    let from = r.index;
+    let to = r.index + r.text.length;
+    let bound = false;
+
+    // 시작·끝이 되는 날짜를 적용해 첫 발생을 다시 계산한다
+    // 시각만 있는 마감("5시까지 매일")은 그날 하루의 끝이지 반복의 끝이 아니다
+    const bindTo = (other: ParseResult, j: number): boolean => {
+      if (isTimeOnly(comps[j])) return false;
+      // 마감("다음달까지")의 date는 기준 시각이라 그대로, 지난 시작("지난주부터")은 기준 시각부터
+      const begin = other.date > opts.referenceDate ? other.date : opts.referenceDate;
+      const again = resolve(groups[i], { ...opts, referenceDate: begin });
+      if (!again?.recurrence) return false;
+      // "N주 동안"은 새 시작부터 다시 센 값(again)을 쓴다
+      const until = again.recurrence.until ?? other.end;
+      if (until && until < again.date) return false;
+      const shift = again.date.getTime() - r.date.getTime();
+      r = { ...r, date: again.date, recurrence: { ...again.recurrence, until } };
+      if (r.end) r.end = new Date(r.end.getTime() + shift);
+      return true;
+    };
+
+    const prev = out[out.length - 1];
+    const prevIndex = results.indexOf(prev);
+    if (prev && !prev.recurrence) {
+      const gap = text.slice(prev.index + prev.text.length, r.index);
+      if ((prev.end ? GAP : FROM_GAP).test(gap) && bindTo(prev, prevIndex)) {
+        from = prev.index;
+        out.pop();
+        bound = true;
+      }
+    }
+    const next = results[i + 1];
+    if (!r.recurrence!.until && next?.end && !next.recurrence && GAP.test(text.slice(to, next.index)) && bindTo(next, i + 1)) {
+      to = next.index + next.text.length;
+      bound = true;
+      i++;
+    }
+    const count = COUNT.exec(text.slice(to));
+    const n = count ? parseKoreanNumber(count[1] ?? count[2]) : null;
+    if (n && !r.recurrence!.until) {
+      r = { ...r, recurrence: { ...r.recurrence!, count: n } };
+      to += count![0].length;
+      bound = true;
+    }
+
+    if (bound) {
+      const rule = r.recurrence!;
+      if (rule.until === undefined) delete rule.until;
+      r = { ...r, index: from, text: text.slice(from, to).trim(), recurrence: { ...rule, rrule: toRRule(rule, !r.hasTime) } };
+    }
+    out.push(r);
+  }
+  return out;
 }
 
 /**

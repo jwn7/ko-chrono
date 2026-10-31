@@ -89,7 +89,14 @@ export interface Recurrence {
   byMonthDay?: number;
   /** 매년 몇 월 */
   byMonth?: number;
-  /** 'FREQ=WEEKLY;BYDAY=MO,WE,FR'. date를 DTSTART로 함께 쓰면 캘린더에 그대로 넣을 수 있다 */
+  /** 마지막 발생 한도 ("다음달까지 매주 월요일" → 다음달 말일 23:59). count와 함께 오지 않는다 */
+  until?: Date;
+  /** 전체 횟수 ("총 8회", "10번 반복") */
+  count?: number;
+  /**
+   * 'FREQ=WEEKLY;BYDAY=MO,WE,FR'. date를 DTSTART로 함께 쓰면 캘린더에 그대로 넣을 수 있다.
+   * UNTIL은 date와 같은 벽시계 시각으로 쓴다 (시각이 없으면 'UNTIL=20261130'처럼 날짜만)
+   */
   rrule: string;
 }
 

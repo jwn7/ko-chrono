@@ -76,6 +76,7 @@ const DATE_KEYS: (keyof Components)[] = [
 export function isTimeOnly(c: Components): boolean {
   return (
     c.hour !== undefined &&
+    c.recur === undefined &&
     c.hourOffset === undefined &&
     c.minuteOffset === undefined &&
     !DATE_KEYS.some((k) => c[k] !== undefined)
@@ -124,7 +125,9 @@ function hasConflict(a: Components, b: Components): boolean {
     x.day !== undefined && y.weekday !== undefined && !y.weekend &&
     y.weekOffset === undefined && y.day === undefined && y.dayOffset === undefined && y.monthPart === undefined;
   const dayConflict = both(dayKeys) && !weekdayNote(a, b) && !weekdayNote(b, a);
-  return dayConflict || both(timeKeys) || dateVsRel;
+  // 규칙 34: "다음주부터 매주 월요일"의 날짜는 반복의 시작·끝이라 따로 해석한 뒤 parseAll이 묶는다
+  const recurVsDate = (a.recur !== undefined && has(b, dateKeys)) || (b.recur !== undefined && has(a, dateKeys));
+  return dayConflict || both(timeKeys) || dateVsRel || recurVsDate;
 }
 
 export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | null {
@@ -378,13 +381,25 @@ function resolveRecurrence(group: Fragment[], c: Components, opts: ResolveOption
   }
   if (!d) return null;
 
+  // 규칙 34: "10주 동안 매주 월요일" → 오늘(또는 "A부터"의 A)부터 그 기간의 마지막 날 23:59까지
+  const rule = { ...r };
+  if (c.durationDays !== undefined || c.durationMonths !== undefined) {
+    // N달 뒤 같은 날의 전날까지. 그 달에 없는 날이면 말일로 맞춘다 (11/30 + 3달 → 2/28의 전날)
+    const until = sameDayIn(today.getFullYear(), today.getMonth() + (c.durationMonths ?? 0), today.getDate());
+    until.setDate(until.getDate() + (c.durationDays ?? 0) - 1);
+    until.setHours(23, 59, 0, 0);
+    if (until < d) return null;
+    rule.until = until;
+  }
+
   const last = group[group.length - 1];
+  const timed = hasTime || r.freq === 'HOURLY' || r.freq === 'MINUTELY';
   const result: ParseResult = {
     date: d,
     text: '',
     index: group[0].index,
-    hasTime: hasTime || r.freq === 'HOURLY' || r.freq === 'MINUTELY',
-    recurrence: { ...r, rrule: toRRule(r) },
+    hasTime: timed,
+    recurrence: { ...rule, rrule: toRRule(rule, !timed) },
   };
   (result as ParseResult & { _end: number })._end = last.index + last.text.length;
   return result;

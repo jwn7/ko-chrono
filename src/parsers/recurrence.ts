@@ -102,8 +102,14 @@ export const recurrence: Parser = (text) => {
 
 const CODE = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
-/** RFC 5545 RRULE 문자열. 요일은 월요일부터 */
-export function toRRule(r: Omit<Recurrence, 'rrule'>): string {
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * RFC 5545 RRULE 문자열. 요일은 월요일부터.
+ * UNTIL은 벽시계 시각 그대로 쓴다 (DTSTART가 TZID 또는 floating time일 때의 형식).
+ * dateOnly면 DTSTART가 DATE이므로 UNTIL도 날짜만.
+ */
+export function toRRule(r: Omit<Recurrence, 'rrule'>, dateOnly = false): string {
   const parts = [`FREQ=${r.freq}`];
   if (r.interval > 1) parts.push(`INTERVAL=${r.interval}`);
   if (r.byMonth !== undefined) parts.push(`BYMONTH=${r.byMonth}`);
@@ -111,6 +117,13 @@ export function toRRule(r: Omit<Recurrence, 'rrule'>): string {
   if (r.byWeekday?.length) {
     const days = [...r.byWeekday].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => CODE[d]);
     parts.push(`BYDAY=${days.map((c) => (r.byWeekdayNth ? `${r.byWeekdayNth}${c}` : c)).join(',')}`);
+  }
+  if (r.until) {
+    const u = r.until;
+    const date = `${u.getFullYear()}${pad(u.getMonth() + 1)}${pad(u.getDate())}`;
+    parts.push(`UNTIL=${dateOnly ? date : `${date}T${pad(u.getHours())}${pad(u.getMinutes())}${pad(u.getSeconds())}`}`);
+  } else if (r.count) {
+    parts.push(`COUNT=${r.count}`);
   }
   return parts.join(';');
 }

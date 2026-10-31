@@ -22,7 +22,7 @@ ParseResult: {
   text: string;    // 인식된 원문 조각
   index: number;   // 원문 내 위치
   hasTime: boolean;
-  recurrence?: { freq, interval, byWeekday?, byWeekdayNth?, byMonthDay?, byMonth?, rrule };  // 반복 일정
+  recurrence?: { freq, interval, byWeekday?, byWeekdayNth?, byMonthDay?, byMonth?, until?, count?, rrule };  // 반복 일정
 }
 ```
 
@@ -77,6 +77,7 @@ ParseResult: {
 | 어림 상대 | 30분쯤 뒤 / 한 시간 정도 후 | 14:30 / 15:00 |
 | ISO 시각 | 2027-01-01T09:00 | 2027-01-01 09:00 |
 | 반복 일정 | 매일 아침 8시 / 매주 월수금 7시 / 매주 월\~금 / 격주 금요일 / 평일마다 / 매달 15일 / 매월 말일 / 매달 마지막 주 금요일 / 매년 3월 1일 / 2시간마다 | 첫 발생 + `recurrence.rrule` (FREQ=DAILY / WEEKLY;BYDAY=MO,WE,FR / …;BYDAY=MO,TU,WE,TH,FR / WEEKLY;INTERVAL=2;BYDAY=FR / … / MONTHLY;BYMONTHDAY=15 / BYMONTHDAY=-1 / MONTHLY;BYDAY=-1FR / YEARLY;BYMONTH=3;BYMONTHDAY=1 / HOURLY;INTERVAL=2) |
+| 반복의 시작·끝 | 다음달까지 매주 월요일 9시 / 다다음주부터 매주 월요일 / 11월 1일부터 12월 31일까지 매주 토요일 / 10주 동안 매주 월요일 / 매주 수요일 오후 2시, 총 8회 / 매주 화목 오후 3\~5시 | 시작 이후 첫 발생 + `UNTIL=20261130T235900` / 11-09 / 11-07 + `UNTIL=20261231` / `UNTIL=20270107` / `COUNT=8` / `end`는 첫 회차의 끝 (17:00) |
 | 공휴일·기념일 | 크리스마스 / 크리스마스 이브 저녁 7시 / 빼빼로데이 / 한글날 / 광복절 전날 | 12-25 / 12-24 19:00 / 11-11 / 2027-10-09 (지났으면 내년) / 2027-08-14 |
 | 음력 명절 | 설날 / 설 연휴 / 추석 / 추석 전날 / 부처님 오신 날 / 2028년 설날 / 2030년 설날 | 2027-02-07 / 02-06 \~ 02-08 / 2027-09-15 / 2027-09-14 / 2027-05-13 / 2028-01-27 / null (KASI 자료 없음) |
 | 모호성 정보 | 3시에 보자 / 내일 7시 / 다음 토요일 / 내일 저녁 / 오후 3시 | ambiguity: meridiem [내일 03:00] / meridiem [19:00] / next-weekday [11-07] / approximate-time / 없음 |

@@ -223,7 +223,11 @@
     lines.push(`<div class="when"><span class="date">${dateText(main, ref)}</span>${r.hasTime || isDeadline ? `<span class="time">${timeText(main)}</span>` : ''}<span class="rel">${relText(main, ref)}</span></div>`);
     if (r.end && !isDeadline) lines.push(`<div class="range">${when(r.date, r.hasTime, ref)} 부터 → ${when(r.end, true, ref)} 까지</div>`);
     const badges = [];
-    if (r.recurrence) badges.push(`<div class="badge repeat">🔁 ${repeatText(r.recurrence)} 반복 · <code>${esc(r.recurrence.rrule)}</code></div>`);
+    if (r.recurrence) {
+      const rc = r.recurrence;
+      const bound = rc.until ? ` · ${rc.until.getMonth() + 1}/${rc.until.getDate()}까지` : rc.count ? ` · 총 ${rc.count}회` : '';
+      badges.push(`<div class="badge repeat">🔁 ${repeatText(rc)} 반복${bound} · <code>${esc(rc.rrule)}</code></div>`);
+    }
     if (r.ambiguity) {
       const alts = r.ambiguity.alternatives.map((a) => when(a, true, ref)).join(', ');
       badges.push(`<div class="badge warn">⚠️ ${AMBIGUITY[r.ambiguity.reason]}${alts ? ` · 다른 해석: <b>${alts}</b>` : ''}</div>`);
