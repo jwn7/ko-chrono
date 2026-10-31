@@ -16,6 +16,7 @@ import { toEvent, type ParsedEvent } from './event.js';
 
 export type { Ambiguity, Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
 export type { ParsedEvent } from './event.js';
+export { toICS, type ICSOptions } from './ics.js';
 
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence, holiday];
 

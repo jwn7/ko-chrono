@@ -95,7 +95,8 @@ export interface Recurrence {
   count?: number;
   /**
    * 'FREQ=WEEKLY;BYDAY=MO,WE,FR'. date를 DTSTART로 함께 쓰면 캘린더에 그대로 넣을 수 있다.
-   * UNTIL은 date와 같은 벽시계 시각으로 쓴다 (시각이 없으면 'UNTIL=20261130'처럼 날짜만)
+   * UNTIL은 date와 같은 벽시계 시각(floating time)으로 쓴다. 시각이 없으면 'UNTIL=20261130'처럼 날짜만.
+   * DTSTART를 UTC나 TZID로 쓰는 캘린더 파일에는 toICS()가 UNTIL을 UTC로 바꿔 넣는다
    */
   rrule: string;
 }

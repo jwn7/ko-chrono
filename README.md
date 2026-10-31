@@ -69,6 +69,16 @@ parse('다음달까지 매주 월요일 9시')?.recurrence?.rrule; // 'FREQ=WEEK
 parse('매주 수요일 2시, 총 8회')?.recurrence?.rrule;   // 'FREQ=WEEKLY;BYDAY=WE;COUNT=8'
 ```
 
+`toICS`로 바로 캘린더 파일(.ics)을 만들 수도 있습니다.
+
+```ts
+import { parseEvent, toICS } from 'ko-chrono';
+
+toICS(parseEvent('다음달까지 매주 월요일 9시 팀 회의'), { timezone: 'Asia/Seoul' });
+// BEGIN:VCALENDAR … SUMMARY:팀 회의 … DTSTART;TZID=Asia/Seoul:20261102T090000
+// RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261130T145900Z …
+```
+
 ### 애매하면 알려 주기
 
 "3시"처럼 해석이 갈리는 문장은 기본 해석과 함께 다른 후보를 줍니다. 사용자에게 되묻거나, 이런 문장만 LLM에 넘길 때 씁니다.
@@ -178,6 +188,7 @@ parse('내일 오후 3시', { timezone: 'Asia/Seoul' });  // 서버 시간대와
 | `parseAll(text, options?)` | 모든 표현의 `ParseResult[]` |
 | `parseDate(text, options?)` | `parse(...)?.date` 단축형 |
 | `parseEvent(text, options?)` | `{ title, date, end?, hasTime, recurrence? }` |
+| `toICS(result, options?)` | `parse`·`parseEvent` 결과 → `.ics` 문자열 (`title`, `timezone`, `durationMinutes`) |
 
 <details>
 <summary><b><code>ParseResult</code>와 옵션</b></summary>

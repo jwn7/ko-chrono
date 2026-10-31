@@ -54,6 +54,7 @@
     border-radius: 8px; padding: 4px 10px; cursor: pointer;
   }
   button.ghost:hover { color: var(--accent); border-color: var(--accent); }
+  .result .actions { margin-top: 12px; }
 
   .examples { margin: 28px 0 8px; display: grid; gap: 10px; }
   .group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
@@ -143,7 +144,7 @@
 </div>
 
 <script type="module">
-  import { parseAll, parseEvent } from '../dist/index.js';
+  import { parseAll, parseEvent, toICS } from '../dist/index.js';
 
   const EXAMPLES = {
     '약속': ['그럼 다음주 수요일 저녁 7시에 강남에서 볼까?', '담주 월욜 점심 ㄱ?', '내일 10시 아니면 모레 2시'],
@@ -215,7 +216,7 @@
     return html + esc(text.slice(at));
   }
 
-  function card(r, ref) {
+  function card(r, ref, i) {
     const isDeadline = r.end && r.date.getTime() === ref.getTime();
     const main = isDeadline ? r.end : r.date;
     const lines = [];
@@ -233,9 +234,13 @@
       badges.push(`<div class="badge warn">⚠️ ${AMBIGUITY[r.ambiguity.reason]}${alts ? ` · 다른 해석: <b>${alts}</b>` : ''}</div>`);
     }
     if (badges.length) lines.push(`<div class="badges">${badges.join('')}</div>`);
+    lines.push(`<div class="actions"><button class="ghost" type="button" data-ics="${i}">📅 캘린더에 추가 (.ics)</button></div>`);
     lines.push(`<details><summary>JSON</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>`);
     return `<article class="card result">${lines.join('')}</article>`;
   }
+
+  // 지금 화면의 결과 (캘린더 버튼이 쓴다)
+  let current = { results: [], ref: new Date(), title: '' };
 
   function run() {
     const text = $('input').value;
@@ -259,7 +264,8 @@
         || /^(?:그럼|그러면|혹시|아니면|근데|그래서|우리|저희)$/.test(event.title);
       const title = event.title && event.title !== text.trim() && !chatty
         ? `<div class="event">할 일로 쓰면 → 제목 <b>${esc(event.title)}</b></div>` : '';
-      $('out').innerHTML = title + results.map((r) => card(r, ref)).join('');
+      current = { results, ref, title: event.title && !chatty ? event.title : '' };
+      $('out').innerHTML = title + results.map((r, i) => card(r, ref, i)).join('');
     }
     $('code').textContent =
       `import { parse, parseEvent } from 'ko-chrono';\n\n` +
@@ -283,6 +289,21 @@
     }
     $('examples').appendChild(row);
   }
+
+  // .ics 내려받기. 마감("~까지")은 기준 시각부터가 아니라 마감 날의 일정으로 넣는다
+  $('out').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-ics]');
+    if (!btn) return;
+    const r = current.results[+btn.dataset.ics];
+    const deadline = r.end && r.date.getTime() === current.ref.getTime();
+    const input = deadline ? { ...r, date: r.end, end: undefined } : r;
+    const title = current.title || r.text;
+    const ics = toICS(input, { title });
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: `${title.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || 'ko-chrono'}.ics` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
 
   const flash = (btn, label) => { const old = btn.textContent; btn.textContent = label; setTimeout(() => (btn.textContent = old), 1200); };
   $('input').addEventListener('input', run);

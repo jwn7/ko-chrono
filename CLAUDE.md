@@ -13,6 +13,7 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 - `resolve.ts` — 인접 조각을 묶고(groupFragments) 기준일에 대입해 Date로 만든다(resolve). 모든 날짜 계산은 여기서만.
 - `index.ts` — parse / parseAll / parseDate / parseEvent 공개 API. 파서 등록 목록(PARSERS)도 여기.
 - `event.ts` — parseEvent의 제목 분리 (날짜 부분과 조사 제거).
+- `ics.ts` — toICS: 결과 → iCalendar. 시각이 있으면 UTC 또는 TZID, 없으면 종일(VALUE=DATE). RRULE의 UNTIL은 DTSTART 형식에 맞춰 UTC로 다시 쓴다.
 - `util/timezone.ts` — timezone 옵션 (Intl로 벽시계 ↔ 실제 시점 변환).
 - `util/lunarHolidays.ts` — 음력 → 양력 변환표 (KASI 음력 초하루 목록). 명절도 여기서 계산. **해마다 KASI가 새 연도를 공개하면 그 해 초하루 목록을 추가하고 tests/lunar.test.ts의 명절 날짜도 추가.**
 - `util/number.ts` — "세", "열두", "십이" → 숫자
