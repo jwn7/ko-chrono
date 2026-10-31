@@ -260,7 +260,18 @@ async function main(): Promise<void> {
     const client = new Anthropic();
     call = (c) => claude(client, c);
   }
-  const runs = await pool(cases, CONCURRENCY, call);
+  // 진행률: 무료 티어는 오래 걸려서 멈춘 것처럼 보이지 않게
+  let done = 0;
+  const started = performance.now();
+  const runs = await pool(cases, CONCURRENCY, async (c) => {
+    const r = await call(c);
+    done++;
+    const sec = (performance.now() - started) / 1000;
+    const eta = (sec / done) * (cases.length - done);
+    process.stderr.write(`\r  ${done}/${cases.length}  ${sec.toFixed(0)}초 경과, 약 ${eta.toFixed(0)}초 남음   `);
+    return r;
+  });
+  process.stderr.write('\n\n');
   const llmCorrect = cases.filter((c, i) => correct(c, runs[i].answer)).length;
   const inTok = runs.reduce((s, r) => s + r.inputTokens, 0);
   const outTok = runs.reduce((s, r) => s + r.outputTokens, 0);
