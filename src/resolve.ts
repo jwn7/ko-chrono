@@ -176,7 +176,15 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   if (!isLunar && (hasYear || c.month !== undefined || c.day !== undefined)) {
     let y = c.year ?? ref.getFullYear() + (c.yearOffset ?? 0);
     // "작년", "내년"처럼 연도만 있으면 1월 1일. "내년 이맘때", "1년 뒤"는 오늘 날짜 유지
-    const m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();
+    let m0 = c.month !== undefined ? c.month - 1 : hasYear && !c.sameDay ? 0 : ref.getMonth();
+    // "5일까지"처럼 일만 있으면: 오늘이 그날을 넘었으면 다음 달, 아니면 이번 달 (오늘 포함).
+    // 그 달에 없는 날("31일")이면 그날이 있는 다음 달로
+    if (!hasYear && c.month === undefined && c.day !== undefined && c.monthOffset === undefined && c.nthWeek === undefined) {
+      if (c.day < ref.getDate()) m0 += 1;
+      while (c.day > lastDayOfMonth(y, m0)) m0 += 1;
+      y += Math.floor(m0 / 12);
+      m0 %= 12;
+    }
     // 연도 미지정 + 이미 지났으면 내년으로.
     // 월일("3월 1일")은 그 날이, 월("3월", "2월 말")은 그 달이 통째로 지났을 때.
     if (!hasYear && c.month !== undefined) {
