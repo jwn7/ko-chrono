@@ -13,154 +13,95 @@
 
 **[▶ 브라우저에서 바로 해 보기](https://jwn7.github.io/ko-chrono/)**
 
-[설치](#설치) · [사용법](#사용법) · [지원 표현](#지원-표현) · [해석 규칙](#해석-규칙) · [예제](#예제) · [문장 제보](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml)
-
 </div>
 
 <br>
 
-[chrono-node](https://github.com/wanasit/chrono)는 영어·일본어·중국어 등은 지원하지만 한국어는 없습니다.
-[es-hangul](https://github.com/toss/es-hangul)이 **글자**를 다룬다면, ko-chrono는 **문장 속 시간**을 다룹니다.
-
-| 입력 | 결과 <sub>(기준: 2026-10-30 금 14:00)</sub> |
-|---|---|
-| 그럼 **다음주 수요일 저녁 7시**에 강남에서 볼까? | `2026-11-04 19:00` |
-| **이번 주 안에** 보내주세요 | 마감 `2026-11-01 23:59` |
-| **오늘부터 3일간** 휴가 | `10-30` \~ `11-01 23:59` |
-| **담주 월욜 점심** ㄱ? | `2026-11-02 12:00` |
-| **11월 첫째 주 월요일**에 시작 | `2026-11-02` |
-| **3시**에 보자 | `2026-10-30 15:00` |
-| 내가 낼게 | `null` (날짜 아님) |
-
-<br>
-
-## 특징
-
-- **문장 중간에서 찾기** — 앞뒤 말은 무시하고 날짜 부분만, 여러 개면 전부
-- **구간과 마감** — "\~까지", "A부터 B까지", "3\~5시", "오늘부터 3일간", "이번 주 내내"
-- **반복 일정** — "매주 월수금 7시", "격주 화요일", "매달 마지막 주 금요일" → 캘린더용 RRULE
-- **공휴일·명절** — "크리스마스 이브", "설 연휴", "추석 전날" (음력은 한국천문연구원 자료 기준)
-- **구어체** — "담주 월욜", "낼 오후 2시", "내일모레", "3시쯤", 띄어쓰기 생략
-- **틀리느니 비운다** — "3일 연속", "2시간짜리", "1월생"은 날짜로 잡지 않음
-- **서버에서도 정확** — `timezone: 'Asia/Seoul'` 한 줄이면 UTC 서버에서도 한국 시간
-- **가볍다** — 런타임 의존성 0, ESM·CommonJS 둘 다, 브라우저·Node 모두
-
-<br>
-
-## 설치
+`ko-chrono`는 "다음주 화요일 오후 3시" 같은 한국어 표현을 찾아 `Date`로 바꿔 주는 JavaScript 라이브러리입니다.
+[chrono-node](https://github.com/wanasit/chrono)에 없는 한국어를 채우려고 만들었습니다. [es-hangul](https://github.com/toss/es-hangul)이 **글자**를 다룬다면, ko-chrono는 **문장 속 시간**을 다룹니다.
 
 ```bash
 npm install ko-chrono
 ```
 
-## 사용법
+런타임 의존성은 없고, ESM·CommonJS·브라우저·Node 어디서나 씁니다.
+
+## 사용 예시
+
+> 아래 결과는 모두 기준 시각 **2026-10-30 (금) 14:00** 기준입니다.
+
+### 채팅에서 약속 시각 찾기
+
+앞뒤 말은 건너뛰고 날짜 부분만 찾습니다. `text`와 `index`로 메시지 안에서 강조 표시를 할 수 있습니다.
 
 ```ts
-import { parse, parseAll, parseDate } from 'ko-chrono';
+import { parse } from 'ko-chrono';
 
-parseDate('다음주 화요일 오후 3시');   // Date: 2026-11-03 15:00
+const r = parse('그럼 다음주 수요일 저녁 7시에 강남에서 볼까?');
 
-parse('그럼 다음주 수요일 저녁 7시에 강남에서 볼까?');
-// { date: 2026-11-04 19:00, text: '다음주 수요일 저녁 7시', index: 3, hasTime: true }
-
-parse('이번달 말까지 제출');
-// { date: 지금, end: 2026-10-31 23:59, text: '이번달 말까지', hasTime: false }
-
-parseAll('내일 10시 아니면 모레 2시');
-// [ { date: 10-31 10:00, ... }, { date: 11-01 14:00, ... } ]
+r.date;   // 2026-11-04 19:00
+r.text;   // '다음주 수요일 저녁 7시'
+r.index;  // 3
 ```
 
-### 할 일·일정 한 줄: `parseEvent`
+### 할 일 앱 빠른 입력
 
-할 일 앱이나 캘린더의 빠른 입력처럼, 한 줄을 **제목과 시점**으로 나눕니다.
+`parseEvent`는 한 줄을 **제목**과 **시점**으로 나눕니다. 마감 표현은 `end`에 들어갑니다.
 
 ```ts
 import { parseEvent } from 'ko-chrono';
 
 parseEvent('다음주 금요일까지 보고서 제출');
-// { title: '보고서 제출', date: 지금, end: 2026-11-06 23:59, hasTime: false }
+// { title: '보고서 제출', end: 2026-11-06 23:59, hasTime: false, ... }
 
 parseEvent('내일 오후 3시에 강남역에서 친구 만나기');
 // { title: '강남역에서 친구 만나기', date: 2026-10-31 15:00, hasTime: true }
-
-parseEvent('우유 사기');
-// { title: '우유 사기', date: null, hasTime: false }
 ```
 
-### 애매한 해석: `ambiguity`
+### 반복 일정을 캘린더로
 
-"3시"가 오후인지 새벽인지처럼 해석이 갈릴 수 있으면, 기본 해석은 그대로 두고 다른 후보를 함께 알려 줍니다.
-사용자에게 되묻거나, 이런 문장만 LLM에 넘길 때 쓰면 됩니다.
+반복 표현은 [RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)로 나와서 Google·Apple 캘린더에 그대로 넣을 수 있습니다.
+
+```ts
+parse('매주 월수금 오전 7시 운동')?.recurrence?.rrule;  // 'FREQ=WEEKLY;BYDAY=MO,WE,FR'
+parse('매달 마지막 주 금요일 회식')?.recurrence?.rrule; // 'FREQ=MONTHLY;BYDAY=-1FR'
+```
+
+### 애매하면 알려 주기
+
+"3시"처럼 해석이 갈리는 문장은 기본 해석과 함께 다른 후보를 줍니다. 사용자에게 되묻거나, 이런 문장만 LLM에 넘길 때 씁니다.
 
 ```ts
 const r = parse('3시에 보자');
-// r.date      → 오늘 15:00 (오전/오후가 없는 1~6시는 오후로)
-// r.ambiguity → { reason: 'meridiem', alternatives: [내일 03:00] }
 
-if (!r) askLLM(text);                                 // 날짜를 못 찾음
-else if (r.ambiguity?.alternatives.length) confirm(r);  // "오후 3시 맞으세요?"
+r.date;       // 오늘 15:00
+r.ambiguity;  // { reason: 'meridiem', alternatives: [내일 03:00] }
 ```
 
-| `reason` | 언제 | `alternatives` |
-|---|---|---|
-| `meridiem` | 오전/오후 없는 1\~12시 ("3시", "내일 7시") | 반대쪽 12시간 |
-| `next-weekday` | "다음 토요일"이 이번 주 토요일일 수도, 다음 주 토요일일 수도 | 다른 쪽 날짜 |
-| `approximate-time` | "저녁"(19시), "아침"(8시)처럼 관례로 정한 시각 | 없음 |
+### 서버에서 쓸 때
 
-### 반복 일정
-
-`recurrence.rrule`은 [RFC 5545 RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)이라 Google·Apple 캘린더, iCal에 그대로 넣을 수 있습니다. `date`는 기준 시각 이후 첫 발생입니다.
+서버는 보통 UTC로 돌아서 "오후 3시"가 한국 시간과 어긋납니다. `timezone`을 넘기세요.
 
 ```ts
-parse('매주 월수금 오전 7시 운동');
-// {
-//   date: 2026-11-02 07:00,
-//   text: '매주 월수금 오전 7시',
-//   recurrence: { freq: 'WEEKLY', interval: 1, byWeekday: [1, 3, 5], rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR' }
-// }
-
-parse('매달 마지막 주 금요일 회식')?.recurrence?.rrule;  // 'FREQ=MONTHLY;BYDAY=-1FR'
-parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU'
+parse('내일 오후 3시', { timezone: 'Asia/Seoul' });  // 서버 시간대와 상관없이 서울 오후 3시
 ```
 
-### API
+## 이런 문장을 읽습니다
 
-| 함수 | 반환 |
+| 입력 | 결과 |
 |---|---|
-| `parse(text, options?)` | 첫 번째 표현의 `ParseResult`, 없으면 `null` |
-| `parseAll(text, options?)` | 모든 표현의 `ParseResult[]` |
-| `parseDate(text, options?)` | `parse(...)?.date` 단축형 |
-| `parseEvent(text, options?)` | `{ title, date, end?, hasTime, recurrence? }` — 날짜를 뺀 나머지가 제목 |
+| **이번 주 안에** 보내주세요 | 마감 `11-01 23:59` |
+| **오늘부터 3일간** 휴가 | `10-30` \~ `11-01 23:59` |
+| **담주 월욜 점심** ㄱ? | `11-02 12:00` |
+| **11월 첫째 주 월요일**에 시작 | `11-02` |
+| **차주 중으로** 회신 부탁드립니다 | 마감 `11-08 23:59` |
+| **설 연휴**에 내려가 | `2027-02-06` \~ `02-08` |
+| 내가 낼게 | `null` (날짜가 아님) |
 
-| `ParseResult` | |
-|---|---|
-| `date` | 찾은 시점. 구간이면 시작, 마감이면 기준 시각 |
-| `end` | 구간의 끝 또는 마감. 없으면 `undefined` |
-| `text` | 문장에서 찾은 부분 (`'다음주 수요일 저녁 7시'`) |
-| `index` | 문장 안에서의 위치 |
-| `hasTime` | 시각까지 말했는지. `false`면 `date`는 그날 `defaultHour`시 |
-| `recurrence` | 반복 일정이면 규칙 (`freq`, `interval`, `byWeekday`, …, `rrule`) |
-| `ambiguity` | 해석이 갈릴 수 있으면 `{ reason, alternatives }` |
-
-### 옵션
-
-| 옵션 | 기본값 | 설명 |
-|---|---|---|
-| `referenceDate` | `new Date()` | "내일", "다음주"의 기준 시각 |
-| `timezone` | 실행 환경 | "오후 3시"를 어느 시간대의 3시로 볼지 (IANA 이름) |
-| `weekStart` | `'monday'` | "이번주/다음주" 계산 기준 (`'sunday'` 가능) |
-| `defaultHour` | `0` | 시각 없는 날짜에 넣을 시 |
-
-> [!TIP]
-> **서버에서는 `timezone`을 꼭 넘기세요.** Vercel, AWS Lambda 같은 서버는 보통 UTC로 돌아서, 그대로 쓰면 한국 사용자의 "오후 3시"가 한국 시간 자정이 됩니다.
-> ```ts
-> parse('내일 오후 3시', { timezone: 'Asia/Seoul' });  // 서버 시간대와 상관없이 서울 오후 3시
-> ```
-> 브라우저에서는 사용자의 시간대가 기본값이라 보통 필요 없습니다. 내장 `Intl`로 계산해서 의존성이 늘지 않습니다.
+<details>
+<summary><b>지원하는 표현 전체</b></summary>
 
 <br>
-
-## 지원 표현
 
 | 분류 | 예 |
 |---|---|
@@ -179,25 +120,23 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 | 반복 | 매일 · 매주 월수금 · 매주 월\~금 · 격주 · 평일마다 · 매달 15일 · 매월 말일 · 매달 마지막 주 금요일 · 매년 3월 1일 · 2시간마다 |
 | 문장 | 띄어쓰기 생략 · 조사(은·는·도) · 어림말(쯤·경·께) · 여러 개 추출 |
 
-입력별 결과 전체는 [SPEC.md](./SPEC.md)에 있습니다. 인식 못 하는 문장이 있으면 [제보해 주세요](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml).
+입력별 결과는 [SPEC.md](./SPEC.md)에 모두 있습니다.
 
-<br>
-
-## 해석 규칙
-
-애매한 표현은 아래처럼 정해 두었습니다. 같은 문장은 언제나 같은 답을 냅니다.
+</details>
 
 <details>
-<summary><b>규칙 전체 보기</b> (24개 중 주요 규칙)</summary>
+<summary><b>애매한 표현은 이렇게 정했습니다</b></summary>
 
 <br>
+
+같은 문장은 언제나 같은 답을 냅니다.
 
 **요일과 주**
 - "다음주 월요일" = 기준일이 속한 주의 다음 주 월요일 (금요일에 말하면 3일 뒤)
 - "월요일" 단독 = 오늘 포함 가장 가까운 미래의 월요일
 - "지난 금요일" = 오늘 제외 가장 가까운 과거, "다음 금요일" = 오늘 제외 가장 가까운 미래
 - "이번 주말" = 그 주의 토요일. "주말" 단독 = 다가오는 토요일 (토·일이면 오늘)
-- "11월 첫째 주 월요일" = 11월의 첫 번째 월요일. 요일이 없으면 N번째 월요일
+- "11월 첫째 주 월요일" = 11월의 첫 번째 월요일
 
 **시각**
 - 오전/오후가 없는 1\~6시는 오후 ("3시에 보자" → 15:00). 7\~11시는 그대로
@@ -217,66 +156,76 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 - "오늘부터 3일간" → `end`는 3일째 되는 날 23:59
 
 **명절**
-- "음력 3월 3일"처럼 음력이라고 말한 날짜도 같은 자료로 변환합니다
-- 설날·추석·부처님 오신 날은 [한국천문연구원](https://astro.kasi.re.kr/life/post/calendarData) 자료가 있는 연도(현재 2025\~2028)만. 그 뒤는 추측하지 않고 `null`
+- 설날·추석·부처님 오신 날과 음력 날짜는 [한국천문연구원](https://astro.kasi.re.kr/life/post/calendarData) 자료가 있는 연도(현재 2025\~2028)만. 그 밖은 추측하지 않고 `null`
 - "설 연휴", "추석 연휴" = 전날부터 다음날까지 3일
 
 **잡지 않는 것**
-- 없는 날짜 (2월 30일, 11월 31일), 날짜와 요일이 안 맞는 경우 ("11월 5일 수요일")
+- 없는 날짜 (2월 30일), 날짜와 요일이 안 맞는 경우 ("11월 5일 수요일")
 - 기간만 있는 표현 ("3일간", "3박 4일"), 날짜가 아닌 말 ("3일 연속", "1월생", "내가 낼게")
-- 한자어가 다른 뜻일 때: "금주 결심"(禁酒), "전주 여행"(도시), "차주에게 연락"(車主), "전월세"
+- 한자어가 다른 뜻일 때: "금주 결심"(禁酒), "전주 여행"(도시), "차주에게 연락"(車主)
 - "내일 30분 후"처럼 날짜와 상대 시간이 섞이면 두 개의 결과로 나눔
 
 </details>
 
+## API
+
+| 함수 | 반환 |
+|---|---|
+| `parse(text, options?)` | 첫 번째 표현의 `ParseResult`, 없으면 `null` |
+| `parseAll(text, options?)` | 모든 표현의 `ParseResult[]` |
+| `parseDate(text, options?)` | `parse(...)?.date` 단축형 |
+| `parseEvent(text, options?)` | `{ title, date, end?, hasTime, recurrence? }` |
+
+<details>
+<summary><b><code>ParseResult</code>와 옵션</b></summary>
+
 <br>
+
+| `ParseResult` | |
+|---|---|
+| `date` | 찾은 시점. 구간이면 시작, 마감이면 기준 시각 |
+| `end` | 구간의 끝 또는 마감. 없으면 `undefined` |
+| `text` | 문장에서 찾은 부분 |
+| `index` | 문장 안에서의 위치 |
+| `hasTime` | 시각까지 말했는지. `false`면 `date`는 그날 `defaultHour`시 |
+| `recurrence` | 반복 일정이면 `{ freq, interval, byWeekday, …, rrule }` |
+| `ambiguity` | 해석이 갈리면 `{ reason, alternatives }` |
+
+| `ambiguity.reason` | 언제 |
+|---|---|
+| `meridiem` | 오전/오후 없는 1\~12시 ("3시", "내일 7시") |
+| `next-weekday` | "다음 토요일"이 이번 주일 수도, 다음 주일 수도 |
+| `approximate-time` | "저녁"(19시)처럼 관례로 정한 시각 |
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `referenceDate` | `new Date()` | "내일", "다음주"의 기준 시각 |
+| `timezone` | 실행 환경 | 어느 시간대의 시각으로 볼지 (`'Asia/Seoul'` 같은 IANA 이름) |
+| `weekStart` | `'monday'` | 한 주의 시작 (`'sunday'` 가능) |
+| `defaultHour` | `0` | 시각 없는 날짜에 넣을 시 |
+
+</details>
 
 ## 예제
 
-| | 예제 | 실행 |
-|---|---|---|
-| ✅ | [**할 일 빠른 입력**](./examples/quick-add.mjs)<br>`parseEvent`로 "다음주 금요일까지 보고서 제출" → 제목 "보고서 제출" + 마감 11/6 23:59 | `node examples/quick-add.mjs "..."` |
-| 💬 | [**Slack 봇**](./examples/slack-bot)<br>채널 메시지에서 날짜를 찾아 스레드로 알려줌 (UTC 서버 + `timezone`) | `node examples/slack-bot/try.mjs` |
-| 🧪 | [**Playground**](https://jwn7.github.io/ko-chrono/)<br>브라우저에서 직접 입력해 보기 (문장을 넣으면 공유 링크가 생김) | [jwn7.github.io/ko-chrono](https://jwn7.github.io/ko-chrono/) · 로컬은 `npm run playground` |
+- [할 일 빠른 입력](./examples/quick-add.mjs) — `node examples/quick-add.mjs "다음주 금요일까지 보고서 제출"`
+- [Slack 봇](./examples/slack-bot) — 채널 메시지에서 날짜를 찾아 스레드로 알려 줌
+- [Playground](https://jwn7.github.io/ko-chrono/) — 브라우저에서 직접 입력. 로컬은 `npm run playground`
 
-<br>
+## LLM에 물어보면 되지 않나요?
 
-## LLM 대신 쓰는 이유
+됩니다. 다만 규칙으로 풀리는 날짜라면 이쪽이 빠르고, 공짜이고, 매번 같은 답을 냅니다.
+메신저 문장 112개로 비교해 보니 ko-chrono는 문장당 **0.017ms**, Gemini Flash-Lite(무료 티어)는 **987ms**였습니다 ([자세히](./bench/RESULTS.md)).
 
-날짜를 LLM에 물어볼 수도 있지만, 정해진 규칙으로 풀리는 문제라면 이쪽이 빠르고 공짜이고 매번 같은 답을 냅니다.
-
-메신저 문장 112개로 측정한 결과 ([자세히](./bench/RESULTS.md), Gemini Flash-Lite **무료 티어**, 2026-10-31):
-
-| | ko-chrono | LLM API (Gemini Flash-Lite) |
-|---|---|---|
-| 지연 | 문장당 **0.017ms** | 문장당 **987ms** (네트워크만 40ms 이상) |
-| 비용 | **0** | 토큰당 과금 (무료 티어는 분당·일일 한도) |
-| 같은 문장 → 같은 답 | **항상** | 보장 안 됨 |
-| 오프라인 · 브라우저 | **됨** | 안 됨 |
-| 시제·문맥 ("깨서 못 잤어") | 모름 | 앎 |
-| 처음 보는 표현 | 못 함 (`null`) | 대체로 함 |
-
-유료 티어나 다른 모델이면 LLM 쪽이 더 빠를 수 있지만, 네트워크 왕복만으로도 ko-chrono보다 수천 배 느립니다. 정확도는 비슷한 수준이고 차이의 절반은 "저녁이 몇 시냐" 같은 관례 차이였습니다. 규칙으로 풀리는 날짜는 ko-chrono로, `null`이 나오거나 `ambiguity`가 있는 문장만 LLM으로 보내는 조합을 권합니다.
-
-<br>
-
-## 로드맵
-
-- [x] 반복 일정 (매주 월요일 9시, 격주) → RRULE
-- [x] 제목 분리 (`parseEvent`)
-- [x] 명절·공휴일 (설 연휴, 추석 전날, 크리스마스) — 음력 명절은 한국천문연구원 자료가 있는 2025\~2028년
-- [x] 일반 음력 날짜 (음력 3월 3일) — 한국천문연구원 자료가 있는 2025\~2028년
-- [x] 모호성 정보 (`ambiguity`)
-- [ ] chrono-node `ko` 로케일 기여 — 첫 PR 분량 준비됨 ([contrib/chrono-ko](./contrib/chrono-ko))
+평소엔 ko-chrono로 처리하고, `null`이 나오거나 `ambiguity`가 있는 문장만 LLM에 보내는 조합을 권합니다.
 
 ## 기여
 
-가장 큰 도움은 **실제로 쓰이는 문장**입니다. 인식이 안 되거나 다르게 해석되는 문장을 [이슈로 제보](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml)해 주세요.
+가장 큰 도움은 **실제로 쓰이는 문장**입니다. 인식이 안 되거나 다르게 읽히는 문장을 [이슈로 제보](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml)해 주세요.
 
 ```bash
 npm install
 npm test
-npm run build
 ```
 
 ## 라이선스
