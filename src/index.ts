@@ -19,8 +19,8 @@ export type { ParsedEvent } from './event.js';
 
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence, holiday];
 
-// "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다
-const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로)/;
+// "~까지" / "~부터" 접미 감지. "3시~5시"의 "~"도 시작 표시로 본다. "다음주 중", "오늘 중에"도 마감
+const UNTIL = /^\s*(전까지|까지|이내|안에|안으로|내로|중으로|중에(?![가-힣])|중(?![가-힣]))/;
 const FROM = /^\s*(부터|~)\s*/;
 // "이번 주 내내" → 그 기간 전체
 const WHOLE = /^\s*내내/;

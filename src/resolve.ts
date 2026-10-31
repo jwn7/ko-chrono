@@ -311,6 +311,8 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     // "~까지", "~이내": 시작은 기준 시각, 끝은 해당 시점(시간 없으면 그날 23:59)
     // "~내내": 시작은 그 기간의 시작, 끝은 기간의 끝
     result.end = hasTime ? new Date(d) : periodEnd(d, c);
+    // "이번 주말 내내" → 토요일부터 일요일까지
+    if (c.whole && c.weekend && !hasTime && result.end.getDay() === 6) result.end.setDate(result.end.getDate() + 1);
     // 규칙 30: "어제까지"처럼 이미 지난 마감은 구간이 아니라 그 시점 (date = end)
     if (c.isEnd) result.date = result.end < ref ? new Date(result.end) : new Date(ref);
   }

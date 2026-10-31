@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../src/index.js';
-import { cases, REF } from './cases/messenger.js';
+import { cases, REF, type Case } from './cases/messenger.js';
+import { stress } from './cases/stress.js';
 
 // 'YYYY-MM-DDTHH:mm' → 로컬 Date
 const local = (s: string) => {
@@ -9,8 +10,8 @@ const local = (s: string) => {
 };
 const ref = local(REF);
 
-describe('메신저 문장', () => {
-  for (const { text, date, end } of cases) {
+const run = (list: Case[]) => {
+  for (const { text, date, end } of list) {
     it(text, () => {
       const r = parse(text, { referenceDate: ref });
       if (date === null) return expect(r).toBeNull();
@@ -18,4 +19,7 @@ describe('메신저 문장', () => {
       if (end) expect(r?.end).toEqual(local(end));
     });
   }
-});
+};
+
+describe('메신저 문장', () => run(cases));
+describe('스트레스 예문', () => run(stress));

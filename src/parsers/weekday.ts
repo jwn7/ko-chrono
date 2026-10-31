@@ -28,9 +28,9 @@ const WEEKS_LATER = new RegExp(`(\\d{1,2}|한|두|세|네|다섯)\\s*주\\s*(?:�
 // "전주"는 도시 이름과 너무 자주 겹쳐서 요일이 붙을 때만
 const FORMAL_WEEK: Record<string, number> = { 전전: -2, 전: -1, 금: 0, 차: 1, 익: 1, 차차: 2 };
 const FORMAL_WITH_DAY = new RegExp(`(?<![가-힣])(전전|차차|전|금|차|익)주\\s*(${DAY})(?:요일|욜)`, 'g');
-// "차주 중으로", "금주 내로", "차주에 회의", "익주까지". "금주에"는 "금주에 성공했어"(禁酒)와 겹쳐서 제외
+// "차주 중으로", "차주 중", "금주 내로", "차주에 회의", "익주까지". "금주에"는 "금주에 성공했어"(禁酒)와 겹쳐서 제외
 const FORMAL_WEEK_ONLY =
-  /(?<![가-힣])(?:(전전|차차|차|익)주(?=\s*(?:에(?!게|서)|에는|중으로|중에|내로|내|안에|안으로|까지|초|말|부터))|(금)주(?=\s*(?:중으로|중에|내로|내|안에|안으로|까지|초|말|부터)))/g;
+  /(?<![가-힣])(?:(전전|차차|차|익)주(?=\s*(?:에(?!게|서)|에는|중으로|중에|중(?![가-힣])|내로|내|안에|안으로|까지|초|말|부터))|(금)주(?=\s*(?:중으로|중에|중(?![가-힣])|내로|내|안에|안으로|까지|초|말|부터)))/g;
 // "지난 금요일" = 오늘 제외 가장 가까운 과거, "다음 금요일" = 오늘 제외 가장 가까운 미래
 const DIR = new RegExp(`(지난|저번|다음)\\s*(${DAY})(?:요일|욜)`, 'g');
 // "주말에 보자" ("이번 주말"은 위 WEEKEND가 먼저 잡는다)
@@ -90,7 +90,7 @@ export const weekday: Parser = (text) => {
     taken.push([m.index!, m.index! + m[0].length]);
   }
   for (const m of text.matchAll(WEEKEND)) {
-    out.push({ text: m[0], index: m.index!, components: { weekOffset: WEEK_WORDS[m[1]], weekday: 6 } });
+    out.push({ text: m[0], index: m.index!, components: { weekOffset: WEEK_WORDS[m[1]], weekday: 6, weekend: true } });
     taken.push([m.index!, m.index! + m[0].length]);
   }
   for (const m of text.matchAll(BARE_WEEKEND)) {

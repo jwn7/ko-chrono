@@ -1,6 +1,8 @@
 import type { Fragment, Parser } from '../types.js';
 import { parseKoreanNumber } from '../util/number.js';
 
+// "24시 편의점", "24시 영업": 하루 종일 연다는 뜻이지 시각이 아니다
+const OPEN_ALL_DAY = /^\s*(?:편의점|영업|운영|무인|사우나|찜질방|약국|병원|동물병원|매장|카페|식당|해장국|김밥|헬스|콜센터|상담)/;
 // "오후 3시", "3시 반", "오전 10시 30분", "새벽 2시", "저녁 7시", "낮 12시", "15시", "7시30", "3시 정각"
 const CLOCK =
   /(오전|오후|새벽|아침|저녁|밤|낮|정오)?\s*(\d{1,2}|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두)\s*시(?!간)\s*(?:(반)|(\d{1,2})\s*분|(\d{2})(?![\d가-힣])|정각)?/g;
@@ -93,6 +95,7 @@ export const time: Parser = (text) => {
   for (const m of text.matchAll(CLOCK)) {
     const raw = parseKoreanNumber(m[2]);
     if (raw == null || raw > 24) continue;
+    if (raw === 24 && !m[1] && OPEN_ALL_DAY.test(text.slice(m.index! + m[0].length))) continue;
     if (!take(m.index!, m[0].length)) continue;
     const hour = applyMeridiem(m[1], raw);
     let minute = 0;
