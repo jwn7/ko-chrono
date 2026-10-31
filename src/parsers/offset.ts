@@ -38,7 +38,9 @@ export const offset: Parser = (text) => {
         break;
       case '달':
       case '개월':
+        // "한 달 뒤" = 다음 달 같은 날 (그 달 1일이 아니라)
         c.monthOffset = sign * n;
+        c.sameDay = true;
         break;
       case '년':
         // "2028년 후"는 "2028년 뒤"가 아니라 "2028년 이후"일 가능성이 크다. 100년 넘게는 상대 이동으로 보지 않는다

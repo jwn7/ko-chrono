@@ -28,7 +28,13 @@ describe('상대 일', () => {
 describe('N단위 뒤/전', () => {
   it('3일 뒤', () => expect(p('3일 뒤')!.date).toEqual(d(2026, 11, 2)));
   it('2주 후', () => expect(p('2주 후')!.date).toEqual(d(2026, 11, 13)));
-  it('한 달 전', () => expect(p('한 달 전')!.date).toEqual(d(2026, 9, 1)));
+  // 규칙 24: N달 뒤/전은 같은 날짜, 그 달에 없으면 말일
+  it('한 달 전', () => expect(p('한 달 전')!.date).toEqual(d(2026, 9, 30)));
+  it('한 달 뒤', () => expect(p('한 달 뒤')!.date).toEqual(d(2026, 11, 30)));
+  it('3개월 후', () => expect(p('3개월 후')!.date).toEqual(d(2027, 1, 30)));
+  it('4달 뒤 (2월 30일은 없어서 말일)', () => expect(p('4달 뒤')!.date).toEqual(d(2027, 2, 28)));
+  it('한 달 안에', () => expect(p('한 달 안에 갚을게')!.end).toEqual(d(2026, 11, 30, 23, 59)));
+  it('5일 뒤', () => expect(p('5일 뒤')!.date).toEqual(d(2026, 11, 4)));
   it('세 시간 뒤', () => expect(p('세 시간 뒤')!.date).toEqual(d(2026, 10, 30, 17)));
   it('30분 후', () => expect(p('30분 후')!.date).toEqual(d(2026, 10, 30, 14, 30)));
   it('열흘 뒤', () => expect(p('열흘 뒤')!.date).toEqual(d(2026, 11, 9)));

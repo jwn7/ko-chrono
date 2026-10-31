@@ -323,7 +323,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
 function periodEnd(d: Date, c: Components): Date {
   let end = new Date(d);
   if (c.weekOffset !== undefined && c.weekday === undefined) end.setDate(end.getDate() + 6);
-  else if (c.monthOffset !== undefined && c.monthPart === undefined && c.day === undefined)
+  else if (c.monthOffset !== undefined && c.monthPart === undefined && c.day === undefined && !c.sameDay)
     end = new Date(end.getFullYear(), end.getMonth(), lastDayOfMonth(end.getFullYear(), end.getMonth()));
   else if ((c.year !== undefined || c.yearOffset !== undefined) && c.month === undefined && !c.sameDay)
     end = new Date(end.getFullYear(), 11, 31);
