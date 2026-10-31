@@ -10,8 +10,10 @@ import { duration } from './parsers/duration.js';
 import { recurrence } from './parsers/recurrence.js';
 import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, resolve } from './resolve.js';
 import { fromWallClock, toWallClock } from './util/timezone.js';
+import { toEvent, type ParsedEvent } from './event.js';
 
 export type { Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
+export type { ParsedEvent } from './event.js';
 
 const PARSERS = [relativeDay, offset, weekday, absoluteDate, relativeMonth, relativeYear, time, duration, recurrence];
 
@@ -157,4 +159,22 @@ export function parse(text: string, options?: ParseOptions): ParseResult | null 
  */
 export function parseDate(text: string, options?: ParseOptions): Date | null {
   return parse(text, options)?.date ?? null;
+}
+
+/**
+ * 할 일·일정 한 줄을 제목과 시점으로 나눈다. 날짜로 인식된 부분과 거기 붙은 조사를 뺀 나머지가 제목.
+ *
+ * @example
+ * parseEvent('다음주 금요일까지 보고서 제출');
+ * // → { title: '보고서 제출', date: 기준 시각, end: 금요일 23:59, hasTime: false }
+ *
+ * @example
+ * parseEvent('매주 월요일 오전 9시 팀 회의');
+ * // → { title: '팀 회의', date: 다음 월요일 09:00, hasTime: true, recurrence: { rrule: 'FREQ=WEEKLY;BYDAY=MO', ... } }
+ *
+ * @example
+ * parseEvent('우유 사기');  // → { title: '우유 사기', date: null, hasTime: false }
+ */
+export function parseEvent(text: string, options?: ParseOptions): ParsedEvent {
+  return toEvent(text, parseAll(text, options));
 }

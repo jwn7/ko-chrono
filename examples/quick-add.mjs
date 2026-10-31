@@ -6,23 +6,18 @@
 //
 // 실제 프로젝트에서는 '../dist/index.js' 대신 'ko-chrono'에서 import 한다.
 
-import { parse } from '../dist/index.js';
+import { parseEvent } from '../dist/index.js';
 
 const TZ = 'Asia/Seoul';
 
-/** "다음주 금요일까지 보고서 제출" → { title: '보고서 제출', due, start? } */
+/** "다음주 금요일까지 보고서 제출" → { title: '보고서 제출', due, start?, repeat? } */
 export function quickAdd(line, referenceDate = new Date()) {
-  const r = parse(line, { referenceDate, timezone: TZ });
-  if (!r) return { title: line.trim() };
-  // 날짜 부분을 빼고, 그 자리에 남는 조사(에, 에는, 까지는…)를 정리한다
-  const title = (line.slice(0, r.index) + line.slice(r.index + r.text.length))
-    .replace(/^\s*(?:에는|에|은|는|까지는|까지)\s+/, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-  const isDeadline = r.end && r.date.getTime() === referenceDate.getTime();
-  return isDeadline
-    ? { title, due: r.end }
-    : { title, start: r.date, ...(r.end && { due: r.end }), allDay: !r.hasTime };
+  const e = parseEvent(line, { referenceDate, timezone: TZ });
+  if (!e.date) return { title: e.title };
+  // 마감("~까지")이면 date가 기준 시각이라 시작일로 쓰지 않는다
+  const isDeadline = e.end && e.date.getTime() === referenceDate.getTime();
+  const task = isDeadline ? { title: e.title, due: e.end } : { title: e.title, start: e.date, ...(e.end && { due: e.end }), allDay: !e.hasTime };
+  return e.recurrence ? { ...task, repeat: e.recurrence.rrule } : task;
 }
 
 const show = (d) =>
@@ -36,11 +31,13 @@ const lines = process.argv.length > 2
       '모레 저녁 7시 강남역 저녁 약속',
       '11월 첫째 주 월요일 분기 회고',
       '오늘부터 3일간 휴가',
+      '매주 월수금 오전 7시 헬스',
       '우유 사기',
     ];
 
 for (const line of lines) {
   const t = quickAdd(line);
   const when = [t.start && `시작 ${show(t.start)}`, t.due && `마감 ${show(t.due)}`].filter(Boolean).join(' · ');
-  console.log(`${line}\n  → "${t.title}"  ${when || '(날짜 없음)'}${t.allDay ? ' [종일]' : ''}\n`);
+  const repeat = t.repeat ? `  반복 ${t.repeat}` : '';
+  console.log(`${line}\n  → "${t.title}"  ${when || '(날짜 없음)'}${t.allDay ? ' [종일]' : ''}${repeat}\n`);
 }

@@ -70,6 +70,23 @@ parseAll('내일 10시 아니면 모레 2시');
 // [ { date: 10-31 10:00, ... }, { date: 11-01 14:00, ... } ]
 ```
 
+### 할 일·일정 한 줄: `parseEvent`
+
+할 일 앱이나 캘린더의 빠른 입력처럼, 한 줄을 **제목과 시점**으로 나눕니다.
+
+```ts
+import { parseEvent } from 'ko-chrono';
+
+parseEvent('다음주 금요일까지 보고서 제출');
+// { title: '보고서 제출', date: 지금, end: 2026-11-06 23:59, hasTime: false }
+
+parseEvent('내일 오후 3시에 강남역에서 친구 만나기');
+// { title: '강남역에서 친구 만나기', date: 2026-10-31 15:00, hasTime: true }
+
+parseEvent('우유 사기');
+// { title: '우유 사기', date: null, hasTime: false }
+```
+
 ### 반복 일정
 
 `recurrence.rrule`은 [RFC 5545 RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)이라 Google·Apple 캘린더, iCal에 그대로 넣을 수 있습니다. `date`는 기준 시각 이후 첫 발생입니다.
@@ -93,6 +110,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 | `parse(text, options?)` | 첫 번째 표현의 `ParseResult`, 없으면 `null` |
 | `parseAll(text, options?)` | 모든 표현의 `ParseResult[]` |
 | `parseDate(text, options?)` | `parse(...)?.date` 단축형 |
+| `parseEvent(text, options?)` | `{ title, date, end?, hasTime, recurrence? }` — 날짜를 뺀 나머지가 제목 |
 
 | `ParseResult` | |
 |---|---|
@@ -187,7 +205,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 
 | | 예제 | 실행 |
 |---|---|---|
-| ✅ | [**할 일 빠른 입력**](./examples/quick-add.mjs)<br>"다음주 금요일까지 보고서 제출" → 제목 "보고서 제출" + 마감 11/6 23:59 | `node examples/quick-add.mjs "..."` |
+| ✅ | [**할 일 빠른 입력**](./examples/quick-add.mjs)<br>`parseEvent`로 "다음주 금요일까지 보고서 제출" → 제목 "보고서 제출" + 마감 11/6 23:59 | `node examples/quick-add.mjs "..."` |
 | 💬 | [**Slack 봇**](./examples/slack-bot)<br>채널 메시지에서 날짜를 찾아 스레드로 알려줌 (UTC 서버 + `timezone`) | `node examples/slack-bot/try.mjs` |
 | 🧪 | [**Playground**](./playground/index.html)<br>브라우저에서 직접 입력해 보기 | `npm run playground` |
 
@@ -213,6 +231,7 @@ parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;IN
 ## 로드맵
 
 - [x] 반복 일정 (매주 월요일 9시, 격주) → RRULE
+- [x] 제목 분리 (`parseEvent`)
 - [ ] 명절·공휴일 (설 연휴, 추석 전날, 크리스마스)
 - [ ] chrono-node `ko` 로케일 기여
 
