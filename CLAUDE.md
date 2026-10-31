@@ -4,7 +4,7 @@
 chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"를 다루면 우리는 "문장 속 시간"을 다룬다.
 
 ## 현재 상태
-- npm 배포: 0.2.0 (2026-10-31). 저장소는 0.3.0 준비 완료 (ambiguity, 일반 음력 날짜) — `npm publish`는 사용자가. 테스트 464개 (tests/*.test.ts: 파서·메신저 예문·parseEvent·음력 표 검증·퍼즈·문서). `npm test`로 확인.
+- npm 배포: 0.3.0 (2026-10-31, 업무용 한자어 빠진 빌드). 저장소는 0.3.1 준비 완료 — `npm publish`는 사용자가. publish 때 prepublishOnly가 빌드·테스트를 자동으로 돌린다. 테스트 464개 (tests/*.test.ts: 파서·메신저 예문·parseEvent·음력 표 검증·퍼즈·문서). `npm test`로 확인.
 - 의존성: 런타임 0개. devDependencies는 typescript, vitest뿐. 이 상태를 유지한다 (런타임 의존성 추가 금지).
 
 ## 아키텍처 (src/)

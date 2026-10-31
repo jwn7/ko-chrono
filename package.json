@@ -1,6 +1,6 @@
 {
   "name": "ko-chrono",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "한국어 자연어 날짜/시간 파서 — '다음주 화요일 오후 3시' → Date",
   "type": "module",
   "main": "./dist/cjs/index.js",
@@ -22,6 +22,7 @@
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.cjs.json && node scripts/mark-cjs.mjs",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
