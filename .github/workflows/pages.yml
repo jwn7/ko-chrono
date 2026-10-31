@@ -1,0 +1,40 @@
+name: Deploy playground
+
+# GitHub Pages가 켜져 있어야 한다: Settings → Pages → Source: GitHub Actions.
+# 켜기 전에 자동으로 돌면 매번 실패하므로 지금은 수동 실행만 (Actions → Deploy playground → Run workflow).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      # playground/index.html은 ../dist를 불러온다. 사이트 루트에 index.html과 dist/를 나란히 둔다
+      - run: |
+          mkdir -p _site
+          cp -r dist _site/dist
+          sed "s#'../dist/index.js'#'./dist/index.js'#" playground/index.html > _site/index.html
+          grep -q "'./dist/index.js'" _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
