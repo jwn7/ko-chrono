@@ -69,15 +69,15 @@ chrono-node에 한국어 로케일이 없어서 만든다. es-hangul이 "글자"
 
 ## 주말 체크리스트
 ### 토요일
-- [ ] `npm install && npm test` 통과 확인
-- [ ] SPEC.md의 "미구현" 섹션에서 패턴 그룹 골라 구현 (테스트 먼저)
-- [ ] 실제 카톡/메신저에서 날짜 문장 50개 수집 → tests/real-world.test.ts
-- [ ] 수집한 문장 중 실패하는 것 고치기
+- [x] `npm install && npm test` 통과 확인 (342개)
+- [x] SPEC.md의 "미구현" 섹션에서 패턴 그룹 골라 구현 (테스트 먼저) — 전부 구현, 미구현 표 비어 있음
+- [x] 실제 카톡/메신저에서 날짜 문장 50개 수집 → tests/real-world.test.ts — Claude 작성 예문 110개. **실제 수집 문장은 아직 없음, 계속 보강**
+- [x] 수집한 문장 중 실패하는 것 고치기
 ### 일요일 오전
-- [ ] 엣지 케이스: 연말/월말 넘어감, 윤년, 24시, "오후 12시"
-- [ ] API 최종 확정, JSDoc 보강
+- [x] 엣지 케이스: 연말/월말 넘어감, 윤년, 24시, "오후 12시"
+- [x] API 최종 확정, JSDoc 보강
 ### 일요일 오후 — **패턴 추가 금지. 아래만.**
-- [ ] README 완성 (예시 20줄, es-hangul 스타일)
-- [ ] playground/index.html 동작 확인 (`npm run build` 후 열기)
-- [ ] `npm publish` (이름 선점 확인 먼저: `npm view ko-chrono`)
-- [ ] GitHub 공개, GIF 하나, GeekNews·X 게시
+- [x] README 완성 (예시 20줄, es-hangul 스타일)
+- [x] playground/index.html 동작 확인 (`npm run build` 후 열기) — `npm run playground`
+- [ ] `npm publish` (이름 선점 확인 먼저: `npm view ko-chrono`) — 이름 비어 있음 확인(10/30). **`npm login` 필요, 사용자가 실행**
+- [ ] GitHub 공개 (현재 private: github.com/jwn7/ko-chrono), GIF 하나, GeekNews·X 게시 — **사용자가 실행**
