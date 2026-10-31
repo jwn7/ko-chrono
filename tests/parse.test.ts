@@ -534,6 +534,54 @@ describe('시 범위 (규칙 16)', () => {
   it('15:00~17:00', () => expect(range('15:00~17:00')).toEqual([d(2026, 10, 30, 15), d(2026, 10, 30, 17)]));
 });
 
+describe('빠진 표현 메우기', () => {
+  it('내일 9시부터 6시까지 (text 잘림 버그)', () => {
+    const r = p('내일 9시부터 6시까지 근무');
+    expect(r!.text).toBe('내일 9시부터 6시까지');
+    expect(r!.end).toEqual(d(2026, 10, 31, 18));
+  });
+  it('회의는 오후 3시 (index는 공백이 아니라 글자 위치)', () => expect(p('회의는 오후 3시')!.index).toBe(4));
+  // 규칙 25: 시간대 단어만 있으면 오전 9시, 오후 15시
+  it('내일 오후', () => {
+    const r = p('내일 오후에 연락드릴게요');
+    expect(r!.date).toEqual(d(2026, 10, 31, 15));
+    expect(r!.hasTime).toBe(true);
+  });
+  it('글피 오전', () => expect(p('글피 오전')!.date).toEqual(d(2026, 11, 2, 9)));
+  it('오후에 연락할게', () => expect(p('오후에 연락할게')!.date).toEqual(d(2026, 10, 30, 15)));
+  it('내일 오후 3시 (기존 동작 유지)', () => expect(p('내일 오후 3시')!.date).toEqual(d(2026, 10, 31, 15)));
+  it('2시부터 4시 (까지 없이)', () => {
+    const r = p('2시부터 4시 회의');
+    expect([r!.date, r!.end]).toEqual([d(2026, 10, 30, 14), d(2026, 10, 30, 16)]);
+    expect(r!.text).toBe('2시부터 4시');
+  });
+  it('11월 1일부터 3일 (까지 없이)', () =>
+    expect(p('11월 1일부터 3일 휴가')!.end).toEqual(d(2026, 11, 3, 23, 59)));
+  it('30분쯤 뒤', () => expect(p('30분쯤 뒤')!.date).toEqual(d(2026, 10, 30, 14, 30)));
+  it('한 시간 정도 후', () => expect(p('한 시간 정도 후')!.date).toEqual(d(2026, 10, 30, 15)));
+  it('2주 뒤 월요일', () => {
+    const r = p('2주 뒤 월요일');
+    expect(r!.date).toEqual(d(2026, 11, 9));
+    expect(r!.text).toBe('2주 뒤 월요일');
+  });
+  it('3주 후 금요일 오후 2시', () => expect(p('3주 후 금요일 오후 2시')!.date).toEqual(d(2026, 11, 20, 14)));
+  it('2027-01-01T09:00', () => expect(p('2027-01-01T09:00')!.date).toEqual(d(2027, 1, 1, 9)));
+  it('2027-01-01 09:30', () => expect(p('2027-01-01 09:30')!.date).toEqual(d(2027, 1, 1, 9, 30)));
+  it('내일 이 시간', () => {
+    const r = p('내일 이 시간에 다시 봐요');
+    expect(r!.date).toEqual(d(2026, 10, 31, 14));
+    expect(r!.hasTime).toBe(true);
+  });
+  it('다음 주 이 시간', () => expect(p('다음 주 이 시간')!.date).toEqual(d(2026, 11, 6, 14)));
+  it('조금 이따 (잡지 않음)', () => expect(p('조금 이따 갈게')).toBeNull());
+  it('같이 시간 내자 (잡지 않음)', () => expect(p('같이 시간 내자')).toBeNull());
+  it('이 시간대엔 막혀 (잡지 않음)', () => expect(p('이 시간대엔 막혀')).toBeNull());
+  it('오전반 수업 (잡지 않음)', () => expect(p('오전반 수업')).toBeNull());
+  it('오후 반차 (잡지 않음)', () => expect(p('오후 반차 쓸게')).toBeNull());
+  it('오전오후 나눠서 (잡지 않음)', () => expect(p('오전오후 나눠서')).toBeNull());
+  it('나중에 (잡지 않음)', () => expect(p('나중에 얘기하자')).toBeNull());
+});
+
 describe('timezone 옵션', () => {
   // 기준 시각 ref = 2026-10-30 05:00 UTC = 서울 14:00 = 뉴욕 01:00 (EDT, 11/1에 EST로 바뀜)
   // 결과는 기계 시간대와 무관한 실제 시점이어야 한다 (서버가 UTC여도 같은 답)

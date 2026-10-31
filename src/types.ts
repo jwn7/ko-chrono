@@ -37,6 +37,8 @@ export interface Components {
   weekdayDir?: 'past' | 'next';
   /** "1년 뒤", "내년 이맘때": 연/월/주 이동 시 기준일의 날짜를 유지 */
   sameDay?: boolean;
+  /** "내일 이 시간": 기준 시각의 시:분을 쓴다 */
+  sameTime?: boolean;
   /** 연 단위 이동 (내년=+1). 지정되면 "지난 월일 → 내년" 규칙을 적용하지 않는다 */
   yearOffset?: number;
   /** 월 단위 이동 (다음달=+1) */

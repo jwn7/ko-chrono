@@ -1,4 +1,5 @@
 import type { Fragment, Parser } from '../types.js';
+import { parseKoreanNumber } from '../util/number.js';
 
 const WEEKDAY: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
 const WEEK_WORDS: Record<string, number> = {
@@ -20,6 +21,8 @@ const NTH = new RegExp(
   'g',
 );
 const NTH_NUM: Record<string, number> = { 첫째: 1, 첫: 1, 둘째: 2, 셋째: 3, 넷째: 4, 다섯째: 5, 마지막: -1 };
+// "2주 뒤 월요일", "3주 후 금요일" → N주 뒤의 그 주의 X요일 ("다다음주 월요일"과 같은 계산)
+const WEEKS_LATER = new RegExp(`(\\d{1,2}|한|두|세|네|다섯)\\s*주\\s*(?:뒤|후)\\s*(${DAY})(?:요일|욜)`, 'g');
 // "지난 금요일" = 오늘 제외 가장 가까운 과거, "다음 금요일" = 오늘 제외 가장 가까운 미래
 const DIR = new RegExp(`(지난|저번|다음)\\s*(${DAY})(?:요일|욜)`, 'g');
 // "주말에 보자" ("이번 주말"은 위 WEEKEND가 먼저 잡는다)
@@ -37,6 +40,12 @@ export const weekday: Parser = (text) => {
   const taken: Array<[number, number]> = [];
   const overlaps = (i: number, len: number) => taken.some(([s, e]) => i < e && i + len > s);
 
+  for (const m of text.matchAll(WEEKS_LATER)) {
+    const n = parseKoreanNumber(m[1]);
+    if (n == null) continue;
+    out.push({ text: m[0], index: m.index!, components: { weekOffset: n, weekday: WEEKDAY[m[2]] } });
+    taken.push([m.index!, m.index! + m[0].length]);
+  }
   for (const m of text.matchAll(NTH)) {
     const c: Fragment['components'] = { nthWeek: NTH_NUM[m[2]] };
     if (m[1]) {

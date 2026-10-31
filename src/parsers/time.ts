@@ -18,7 +18,14 @@ const SHORT_RANGE =
 const COLON = /(?:(오전|오후|새벽|아침|저녁|밤|낮)\s*)?(?<!\d)(\d{1,2}):(\d{2})(?!\d)/g;
 // 단독 시간 단어. "낮"은 "낮다"와 겹쳐서 뒤에 공백/조사가 올 때만
 const WORD = /(정오|자정|점심|아침|저녁|밤(?!새|낮)|퇴근|낮(?=[\s에,]|$))(?!\s*\d)/g;
-const WORD_HOUR: Record<string, number> = { 정오: 12, 자정: 0, 점심: 12, 아침: 8, 저녁: 19, 밤: 21, 퇴근: 18, 낮: 12 };
+// "내일 오후", "오전에" → 9시/15시 (규칙 25). 뒤에 조사·공백·끝만 허용하고,
+// "오전반", "오후 반차", "오전오후"처럼 다른 낱말이 붙으면 잡지 않는다
+const HALF_WORD = /(?<![가-힣])(오전|오후)(?=(?:에는|에|엔|은|는|도|쯤|께)?(?:[\s,.!?~]|$))(?!\s*(?:반|오전|오후|\d))/g;
+const WORD_HOUR: Record<string, number> = {
+  정오: 12, 자정: 0, 점심: 12, 아침: 8, 저녁: 19, 밤: 21, 퇴근: 18, 낮: 12, 오전: 9, 오후: 15,
+};
+// "내일 이 시간", "다음 주 이 시간" → 기준 시각의 시:분. "같이 시간 내자"는 잡지 않는다
+const SAME_TIME = /(?<![가-힣])이\s*시간(?!대|\s*(?:뒤|후|전|동안|이내|안에))/g;
 
 function applyMeridiem(prefix: string | undefined, hour: number): number {
   if (hour === 24) return 0;
@@ -103,6 +110,14 @@ export const time: Parser = (text) => {
     if (!take(m.index!, m[0].length)) continue;
     const hour = applyMeridiem(m[1], raw);
     out.push({ text: m[0], index: m.index!, components: { hour, minute, meridiem: true } });
+  }
+  for (const m of text.matchAll(SAME_TIME)) {
+    if (!take(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { sameTime: true } });
+  }
+  for (const m of text.matchAll(HALF_WORD)) {
+    if (!take(m.index!, m[0].length)) continue;
+    out.push({ text: m[0], index: m.index!, components: { hour: WORD_HOUR[m[1]], minute: 0, meridiem: true } });
   }
   for (const m of text.matchAll(WORD)) {
     if (!take(m.index!, m[0].length)) continue;

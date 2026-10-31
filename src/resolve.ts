@@ -112,6 +112,13 @@ function hasConflict(a: Components, b: Components): boolean {
 export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | null {
   const c = merge(group.map((f) => f.components));
   const ref = opts.referenceDate;
+  // "내일 이 시간" → 기준 시각의 시:분. "다음 주 이 시간"은 7일 뒤 (그 주 월요일이 아니라)
+  if (c.sameTime && c.hour === undefined) {
+    c.hour = ref.getHours();
+    c.minute = ref.getMinutes();
+    c.meridiem = true;
+    if (c.weekOffset !== undefined && c.weekday === undefined) c.sameDay = true;
+  }
   let d = new Date(ref);
   d.setSeconds(0, 0);
   let dateSet = false;

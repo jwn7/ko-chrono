@@ -84,8 +84,10 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
     let end = (r as ParseResult & { _end: number })._end;
     if (until) end += until[0].length;
     delete (r as Partial<ParseResult & { _end: number }>)._end;
-    r.index = g[0].index;
-    r.text = text.slice(g[0].index, end).trim();
+    // 조각이 공백으로 시작할 수 있다 ("오후 3시" 앞의 공백). index는 첫 글자를 가리키게
+    const raw = text.slice(g[0].index, end);
+    r.index = g[0].index + (raw.length - raw.trimStart().length);
+    r.text = raw.trim();
     results.push(r);
     comps.push(merge(g.map((f) => f.components)));
   }
@@ -95,9 +97,12 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
   for (let i = 0; i < results.length; i++) {
     const a = results[i], b = results[i + 1];
     const from = FROM.exec(text.slice(a.index + a.text.length));
-    // "~"는 바로 뒤에 B가 붙어 있을 때만. "부터"는 B가 "까지"로 끝날 때만
-    const tilde = from?.[1] === '~' && b?.index === a.index + a.text.length + from[0].length;
-    if (b && from && (b.end || tilde)) {
+    // "~"는 바로 뒤에 B가 붙어 있을 때만. "부터"는 B가 "까지"로 끝나거나,
+    // 바로 뒤에 붙은 B가 시각·일뿐일 때 ("2시부터 4시", "1일부터 3일")
+    const adjacent = b !== undefined && from !== null && b.index === a.index + a.text.length + from[0].length;
+    const tilde = from?.[1] === '~' && adjacent;
+    const bareFrom = from?.[1] === '부터' && adjacent && (isTimeOnly(comps[i + 1]) || isDayOnly(comps[i + 1]));
+    if (b && from && (b.end || tilde || bareFrom)) {
       const bc = comps[i + 1];
       let end = b.end ?? b.date;
       if (isTimeOnly(bc)) {
