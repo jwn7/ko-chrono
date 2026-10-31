@@ -12,6 +12,7 @@
 // Node 22.6+ 의 TypeScript 타입 제거로 바로 실행된다 (빌드 불필요).
 
 import Anthropic from '@anthropic-ai/sdk';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { parse } from '../dist/index.js';
 import { cases, REF, type Case } from '../tests/cases/messenger.ts';
 
@@ -158,6 +159,14 @@ interface GeminiResponse {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// 무료 티어의 일일 한도가 차면 Google이 몇 시간 뒤에 오라고 한다. 그만큼 기다리지 않고
+// 남은 문장은 보내지 않는다. 받은 답은 캐시에 있으니 한도가 풀린 뒤 다시 돌리면 이어서 한다.
+const MAX_WAIT_MS = 90_000;
+let quotaHit = false;
+const failedRun = (): LlmRun => ({
+  answer: { start: null, end: null }, ms: NaN, inputTokens: 0, outputTokens: 0, servedBy: MODEL, failed: true,
+});
+
 async function gemini(c: Case): Promise<LlmRun> {
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: SYSTEM }] },
@@ -165,6 +174,7 @@ async function gemini(c: Case): Promise<LlmRun> {
     generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA },
   });
   for (let attempt = 1; ; attempt++) {
+    if (quotaHit) return failedRun();
     const t = performance.now();
     const res = await fetch(`${GEMINI_BASE}/models/${MODEL}:generateContent`, {
       method: 'POST',
@@ -177,6 +187,11 @@ async function gemini(c: Case): Promise<LlmRun> {
     if ((res.status === 429 || res.status === 503) && attempt < 8) {
       const delay = json.error?.details?.find((d) => d.retryDelay)?.retryDelay;
       const waitMs = delay ? parseFloat(delay) * 1000 + 500 : 15_000;
+      if (waitMs > MAX_WAIT_MS) {
+        quotaHit = true;
+        process.stderr.write(`\n  429: 무료 한도 소진 (${(waitMs / 3600_000).toFixed(1)}시간 뒤 풀림). 남은 문장은 보내지 않음\n`);
+        return failedRun();
+      }
       process.stderr.write(`  ${res.status}: ${(waitMs / 1000).toFixed(0)}초 기다렸다 다시 (${c.text})\n`);
       await sleep(waitMs);
       continue;
@@ -184,7 +199,7 @@ async function gemini(c: Case): Promise<LlmRun> {
     // 재시도를 다 썼으면 이 문장만 실패로 두고 계속한다 (전체 실행을 날리지 않게)
     if (res.status === 429 || res.status === 503) {
       process.stderr.write(`  ${res.status}: 포기, 응답 없음으로 기록 (${c.text})\n`);
-      return { answer: { start: null, end: null }, ms: NaN, inputTokens: 0, outputTokens: 0, servedBy: MODEL, failed: true };
+      return failedRun();
     }
     // 404(없는 모델), 400(잘못된 요청) 등은 설정 문제라 바로 멈춘다
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${json.error?.message ?? res.statusText}`);
@@ -234,6 +249,14 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
   return out;
 }
 
+// ---------- 캐시 ----------
+// 받은 답을 저장해 두고, 다시 돌리면 이미 받은 문장은 건너뛴다 (모델·프롬프트·문장이 같을 때만).
+const CACHE_FILE = new URL('./.llm-cache.json', import.meta.url);
+type Cache = Record<string, LlmRun>;
+const cacheKey = (c: Case) => `${MODEL}\u0000${SYSTEM}\u0000${c.text}`;
+const loadCache = (): Cache => (existsSync(CACHE_FILE) ? (JSON.parse(readFileSync(CACHE_FILE, 'utf8')) as Cache) : {});
+const saveCache = (cache: Cache) => writeFileSync(CACHE_FILE, JSON.stringify(cache));
+
 // ---------- 실행 ----------
 // process.exit()는 쓰지 않는다: Windows의 Node는 fetch 연결이 열린 채 종료하면
 // 'Assertion failed: UV_HANDLE_CLOSING'으로 죽는다. main이 끝나면 자연스럽게 종료된다.
@@ -269,10 +292,18 @@ async function main(): Promise<void> {
     call = (c) => claude(client, c);
   }
   // 진행률: 무료 티어는 오래 걸려서 멈춘 것처럼 보이지 않게
+  const cache = loadCache();
+  const cachedCount = cases.filter((c) => cache[cacheKey(c)]).length;
+  if (cachedCount) console.log(`(지난 실행에서 받은 답 ${cachedCount}개는 캐시에서 씀)`);
   let done = 0;
   const started = performance.now();
   const runs = await pool(cases, CONCURRENCY, async (c) => {
-    const r = await call(c);
+    const hit = cache[cacheKey(c)];
+    const r = hit ?? (await call(c));
+    if (!hit && !r.failed) {
+      cache[cacheKey(c)] = r;
+      saveCache(cache);
+    }
     done++;
     const sec = (performance.now() - started) / 1000;
     const eta = (sec / done) * (cases.length - done);
@@ -290,6 +321,10 @@ async function main(): Promise<void> {
     : '비용: 단가 미등록 (무료 티어면 $0, 유료 단가는 ai.google.dev/pricing)';
   const fallbackCount = runs.filter((r) => r.servedBy !== MODEL).length;
   const failed = runs.filter((r) => r.failed).length;
+  if (failed === cases.length) {
+    console.log(`${MODEL}: 받은 답이 없음${quotaHit ? ' (무료 한도 소진)' : ''}. 한도가 풀린 뒤 다시 실행하거나 다른 모델로 시도\n`);
+    return;
+  }
   const llmMs = median(runs.filter((r) => !r.failed).map((r) => r.ms));
 
   console.log(
@@ -301,7 +336,8 @@ async function main(): Promise<void> {
   if (failed) {
     const answered = cases.length - failed;
     const answeredCorrect = cases.filter((c, i) => !runs[i].failed && correct(c, runs[i].answer)).length;
-    console.log(`  (서버 과부하로 응답 없음 ${failed}개 → 오답으로 셈. 응답한 ${answered}개 기준 정확도 ${((answeredCorrect / answered) * 100).toFixed(1)}%)`);
+    console.log(`  (${quotaHit ? '무료 한도 소진' : '서버 과부하'}로 응답 없음 ${failed}개 → 오답으로 셈. 응답한 ${answered}개 기준 정확도 ${((answeredCorrect / answered) * 100).toFixed(1)}%)`);
+    console.log(`  (받은 답은 bench/.llm-cache.json에 저장됨. 다시 실행하면 나머지만 보냄)`);
   }
   if (price) console.log(`  → 100만 문장 환산: ko-chrono $0 · ${MODEL} 약 $${((cost / cases.length) * 1e6).toFixed(0)}`);
   console.log(`  → 지연: ko-chrono가 약 ${Math.round((llmMs * 1000) / kcUs).toLocaleString()}배 빠름`);
