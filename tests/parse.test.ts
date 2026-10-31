@@ -582,6 +582,57 @@ describe('빠진 표현 메우기', () => {
   it('나중에 (잡지 않음)', () => expect(p('나중에 얘기하자')).toBeNull());
 });
 
+describe('반복 일정 (규칙 27)', () => {
+  // date = 기준 시각 이후 첫 발생, recurrence.rrule = RFC 5545 RRULE
+  const rec = (s: string) => {
+    const r = p(s);
+    return { date: r?.date, rrule: r?.recurrence?.rrule, text: r?.text };
+  };
+  it('매일 아침 8시', () => expect(rec('매일 아침 8시')).toMatchObject({ date: d(2026, 10, 31, 8), rrule: 'FREQ=DAILY' }));
+  it('매일 오후 6시', () => expect(rec('매일 오후 6시')).toMatchObject({ date: d(2026, 10, 30, 18), rrule: 'FREQ=DAILY' }));
+  it('매주 월요일 오전 9시 회의', () =>
+    expect(rec('매주 월요일 오전 9시 회의')).toEqual({
+      date: d(2026, 11, 2, 9),
+      rrule: 'FREQ=WEEKLY;BYDAY=MO',
+      text: '매주 월요일 오전 9시',
+    }));
+  it('월요일마다', () => expect(rec('월요일마다')).toMatchObject({ date: d(2026, 11, 2), rrule: 'FREQ=WEEKLY;BYDAY=MO' }));
+  it('매주 월수금 7시', () =>
+    expect(rec('매주 월수금 7시')).toMatchObject({ date: d(2026, 11, 2, 7), rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR' }));
+  it('매주 화, 목 저녁 8시', () =>
+    expect(rec('매주 화, 목 저녁 8시')).toMatchObject({ date: d(2026, 11, 3, 20), rrule: 'FREQ=WEEKLY;BYDAY=TU,TH' }));
+  it('매주 월~금 오전 9시', () =>
+    expect(rec('매주 월~금 오전 9시')).toMatchObject({ date: d(2026, 11, 2, 9), rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' }));
+  it('매주 금~일', () => expect(rec('매주 금~일')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY;BYDAY=FR,SA,SU' }));
+  it('매주 일요일 일정 공유 (일정의 "일"은 요일 아님)', () =>
+    expect(rec('매주 일요일 일정 공유')).toMatchObject({ rrule: 'FREQ=WEEKLY;BYDAY=SU', text: '매주 일요일' }));
+  it('격주 금요일', () =>
+    expect(rec('격주 금요일')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=FR' }));
+  it('2주마다 수요일', () =>
+    expect(rec('2주마다 수요일')).toMatchObject({ date: d(2026, 11, 4), rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=WE' }));
+  it('평일마다 오전 10시', () =>
+    expect(rec('평일마다 오전 10시')).toMatchObject({ date: d(2026, 11, 2, 10), rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' }));
+  it('주말마다', () => expect(rec('주말마다')).toMatchObject({ date: d(2026, 10, 31), rrule: 'FREQ=WEEKLY;BYDAY=SA,SU' }));
+  it('매달 15일', () => expect(rec('매달 15일')).toMatchObject({ date: d(2026, 11, 15), rrule: 'FREQ=MONTHLY;BYMONTHDAY=15' }));
+  it('매월 말일', () => expect(rec('매월 말일')).toMatchObject({ date: d(2026, 10, 31), rrule: 'FREQ=MONTHLY;BYMONTHDAY=-1' }));
+  it('매달 마지막 주 금요일', () =>
+    expect(rec('매달 마지막 주 금요일')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=MONTHLY;BYDAY=-1FR' }));
+  it('매달 첫째 주 월요일', () =>
+    expect(rec('매달 첫째 주 월요일')).toMatchObject({ date: d(2026, 11, 2), rrule: 'FREQ=MONTHLY;BYDAY=1MO' }));
+  it('매년 3월 1일', () =>
+    expect(rec('매년 3월 1일')).toMatchObject({ date: d(2027, 3, 1), rrule: 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1' }));
+  it('2시간마다', () => expect(rec('2시간마다')).toMatchObject({ date: d(2026, 10, 30, 16), rrule: 'FREQ=HOURLY;INTERVAL=2' }));
+  it('매주 회의 (요일 없음 → null)', () => expect(p('매주 회의')).toBeNull());
+  it('반복이 아니면 recurrence 없음', () => expect(p('다음주 월요일')!.recurrence).toBeUndefined());
+  it('구조화된 값', () =>
+    expect(p('매주 월수금 7시')!.recurrence).toEqual({
+      freq: 'WEEKLY',
+      interval: 1,
+      byWeekday: [1, 3, 5],
+      rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
+    }));
+});
+
 describe('timezone 옵션', () => {
   // 기준 시각 ref = 2026-10-30 05:00 UTC = 서울 14:00 = 뉴욕 01:00 (EDT, 11/1에 EST로 바뀜)
   // 결과는 기계 시간대와 무관한 실제 시점이어야 한다 (서버가 UTC여도 같은 답)

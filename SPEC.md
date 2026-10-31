@@ -17,11 +17,12 @@ options: {
 }
 
 ParseResult: {
-  date: Date;      // 구간이면 시작
+  date: Date;      // 구간이면 시작, 반복이면 첫 발생
   end?: Date;      // ~까지 / A부터 B까지
   text: string;    // 인식된 원문 조각
   index: number;   // 원문 내 위치
   hasTime: boolean;
+  recurrence?: { freq, interval, byWeekday?, byWeekdayNth?, byMonthDay?, byMonth?, rrule };  // 반복 일정
 }
 ```
 
@@ -75,6 +76,7 @@ ParseResult: {
 | N주 뒤 요일 | 2주 뒤 월요일 / 3주 후 금요일 오후 2시 | 11-09 / 11-20 14:00 |
 | 어림 상대 | 30분쯤 뒤 / 한 시간 정도 후 | 14:30 / 15:00 |
 | ISO 시각 | 2027-01-01T09:00 | 2027-01-01 09:00 |
+| 반복 일정 | 매일 아침 8시 / 매주 월수금 7시 / 매주 월~금 / 격주 금요일 / 평일마다 / 매달 15일 / 매월 말일 / 매달 마지막 주 금요일 / 매년 3월 1일 / 2시간마다 | 첫 발생 + `recurrence.rrule` (FREQ=DAILY / WEEKLY;BYDAY=MO,WE,FR / …;BYDAY=MO,TU,WE,TH,FR / WEEKLY;INTERVAL=2;BYDAY=FR / … / MONTHLY;BYMONTHDAY=15 / BYMONTHDAY=-1 / MONTHLY;BYDAY=-1FR / YEARLY;BYMONTH=3;BYMONTHDAY=1 / HOURLY;INTERVAL=2) |
 | 문장 | 그럼 다음주 수요일 저녁 7시에 강남에서 볼까? | 11-04 19:00, text='다음주 수요일 저녁 7시', index=3 |
 | 복수 | 내일 10시 아니면 모레 2시 | [10-31 10:00, 11-01 14:00] |
 

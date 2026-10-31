@@ -39,6 +39,8 @@ export interface Components {
   sameDay?: boolean;
   /** "내일 이 시간": 기준 시각의 시:분을 쓴다 */
   sameTime?: boolean;
+  /** "매주 월요일", "매달 15일": 반복 규칙 (rrule은 resolve가 만든다) */
+  recur?: Omit<Recurrence, 'rrule'>;
   /** 연 단위 이동 (내년=+1). 지정되면 "지난 월일 → 내년" 규칙을 적용하지 않는다 */
   yearOffset?: number;
   /** 월 단위 이동 (다음달=+1) */
@@ -66,6 +68,25 @@ export interface Components {
   isStart?: boolean;
 }
 
+export type Frequency = 'MINUTELY' | 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+
+/** 반복 일정. 필드 이름과 값은 RFC 5545 RRULE을 따른다 */
+export interface Recurrence {
+  freq: Frequency;
+  /** 몇 번째마다 (격주 = 2) */
+  interval: number;
+  /** 요일들. 0=일 … 6=토 */
+  byWeekday?: number[];
+  /** 매달 N번째 요일 ("마지막 주 금요일" = -1). byWeekday와 함께 쓴다 */
+  byWeekdayNth?: number;
+  /** 매달 며칠 (말일 = -1) */
+  byMonthDay?: number;
+  /** 매년 몇 월 */
+  byMonth?: number;
+  /** 'FREQ=WEEKLY;BYDAY=MO,WE,FR'. date를 DTSTART로 함께 쓰면 캘린더에 그대로 넣을 수 있다 */
+  rrule: string;
+}
+
 export interface Fragment {
   text: string;
   index: number;
@@ -83,6 +104,8 @@ export interface ParseResult {
   index: number;
   /** 시간이 명시되었는지 */
   hasTime: boolean;
+  /** 반복 일정이면 그 규칙. date는 기준 시각 이후 첫 발생 */
+  recurrence?: Recurrence;
 }
 
 export type Parser = (text: string) => Fragment[];

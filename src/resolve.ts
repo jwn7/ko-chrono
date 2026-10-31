@@ -1,4 +1,5 @@
 import type { Components, Fragment, ParseResult, ResolveOptions, WeekStart } from './types.js';
+import { toRRule } from './parsers/recurrence.js';
 
 function startOfWeek(d: Date, weekStart: WeekStart): Date {
   const r = new Date(d);
@@ -11,6 +12,21 @@ function startOfWeek(d: Date, weekStart: WeekStart): Date {
 
 function lastDayOfMonth(y: number, m0: number): number {
   return new Date(y, m0 + 1, 0).getDate();
+}
+
+/** 그 달의 N번째 요일이 며칠인지. nth = -1이면 마지막. 없으면 null ("다섯째 주 토요일") */
+function nthWeekdayOfMonth(y: number, m0: number, weekday: number, nth: number): number | null {
+  const last = lastDayOfMonth(y, m0);
+  let day = 1 + ((weekday - new Date(y, m0, 1).getDay() + 7) % 7);
+  if (nth > 0) day += (nth - 1) * 7;
+  else while (day + 7 <= last) day += 7;
+  return day > last ? null : day;
+}
+
+/** 규칙 20: 오전/오후 없는 1~6시는 오후 ("3시에 보자" → 15시). 7~11시는 그대로 */
+function clockHour(c: Components): number {
+  const h = c.hour!;
+  return !c.meridiem && h >= 1 && h <= 6 ? h + 12 : h;
 }
 
 /** 기준일의 "일"을 유지하되 그 달에 없으면 말일로 (2월 29일 + 1년 → 2월 28일) */
@@ -119,6 +135,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     c.meridiem = true;
     if (c.weekOffset !== undefined && c.weekday === undefined) c.sameDay = true;
   }
+  if (c.recur) return resolveRecurrence(group, c, opts);
   let d = new Date(ref);
   d.setSeconds(0, 0);
   let dateSet = false;
@@ -161,12 +178,9 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     const y = dateSet ? d.getFullYear() : ref.getFullYear();
     const m0 = dateSet ? d.getMonth() : ref.getMonth();
     const target = c.weekday ?? (opts.weekStart === 'monday' ? 1 : 0);
-    const last = lastDayOfMonth(y, m0);
-    let day = 1 + ((target - new Date(y, m0, 1).getDay() + 7) % 7);
-    if (c.nthWeek > 0) day += (c.nthWeek - 1) * 7;
-    else while (day + 7 <= last) day += 7;
+    const day = nthWeekdayOfMonth(y, m0, target, c.nthWeek);
     // "11월 다섯째 주 토요일"처럼 없는 날짜는 null
-    if (day > last) return null;
+    if (day === null) return null;
     d = new Date(y, m0, day);
     dateSet = true;
   } else if (c.weekday !== undefined && c.weekOffset === undefined && c.day !== undefined) {
@@ -214,8 +228,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
 
   // 6. 시각
   if (c.hour !== undefined) {
-    // 규칙 20: 오전/오후 없는 1~6시는 오후 ("3시에 보자" → 15시). 7~11시는 그대로.
-    const hour = !c.meridiem && c.hour >= 1 && c.hour <= 6 ? c.hour + 12 : c.hour;
+    const hour = clockHour(c);
     if (!dateSet) {
       d = new Date(ref);
       // 시간만 있고 날짜가 없으면: 오늘, 이미 지났으면 내일
@@ -278,6 +291,70 @@ function periodEnd(d: Date, c: Components): Date {
     end = new Date(end.getFullYear(), 11, 31);
   end.setHours(23, 59, 0, 0);
   return end;
+}
+
+/**
+ * 반복 일정 (규칙 27): date = 기준 시각 이후 첫 발생.
+ * 시각이 있으면 지난 시각은 건너뛰고, 날짜만 있으면 오늘도 포함한다.
+ * "매달 31일"은 31일이 없는 달을 건너뛴다 (RRULE과 같은 동작).
+ */
+function resolveRecurrence(group: Fragment[], c: Components, opts: ResolveOptions): ParseResult | null {
+  const r = c.recur!;
+  const ref = opts.referenceDate;
+  const hasTime = c.hour !== undefined;
+  const today = new Date(ref);
+  today.setHours(0, 0, 0, 0);
+  const at = (day: Date) => {
+    const x = new Date(day);
+    x.setHours(hasTime ? clockHour(c) : opts.defaultHour, hasTime ? c.minute ?? 0 : 0, 0, 0);
+    return x;
+  };
+  const ok = (x: Date) => (hasTime ? x >= ref : x >= today);
+
+  let d: Date | null = null;
+  if (r.freq === 'MINUTELY' || r.freq === 'HOURLY') {
+    d = new Date(ref);
+    d.setSeconds(0, 0);
+    d.setMinutes(d.getMinutes() + r.interval * (r.freq === 'HOURLY' ? 60 : 1));
+  } else if (r.freq === 'DAILY') {
+    d = at(today);
+    if (!ok(d)) d.setDate(d.getDate() + 1);
+  } else if (r.freq === 'WEEKLY') {
+    for (let i = 0; i < 14 && !d; i++) {
+      const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      if (r.byWeekday?.includes(day.getDay()) && ok(at(day))) d = at(day);
+    }
+  } else if (r.freq === 'MONTHLY') {
+    for (let k = 0; k < 24 && !d; k++) {
+      const y = today.getFullYear(), m0 = today.getMonth() + k;
+      const dom = r.byWeekdayNth !== undefined
+        ? nthWeekdayOfMonth(y, m0, r.byWeekday![0], r.byWeekdayNth)
+        : r.byMonthDay === -1 ? lastDayOfMonth(y, m0) : r.byMonthDay!;
+      if (dom === null || dom > lastDayOfMonth(y, m0)) continue;
+      const x = at(new Date(y, m0, dom));
+      if (ok(x)) d = x;
+    }
+  } else {
+    // YEARLY: 2월 29일은 다음 윤년까지
+    for (let k = 0; k < 9 && !d; k++) {
+      const y = today.getFullYear() + k, m0 = r.byMonth! - 1;
+      if (r.byMonthDay! > lastDayOfMonth(y, m0)) continue;
+      const x = at(new Date(y, m0, r.byMonthDay!));
+      if (ok(x)) d = x;
+    }
+  }
+  if (!d) return null;
+
+  const last = group[group.length - 1];
+  const result: ParseResult = {
+    date: d,
+    text: '',
+    index: group[0].index,
+    hasTime: hasTime || r.freq === 'HOURLY' || r.freq === 'MINUTELY',
+    recurrence: { ...r, rrule: toRRule(r) },
+  };
+  (result as ParseResult & { _end: number })._end = last.index + last.text.length;
+  return result;
 }
 
 function partDay(y: number, m0: number, part: NonNullable<Components['monthPart']>): number {

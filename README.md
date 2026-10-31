@@ -39,6 +39,7 @@
 
 - **문장 중간에서 찾기** — 앞뒤 말은 무시하고 날짜 부분만, 여러 개면 전부
 - **구간과 마감** — "\~까지", "A부터 B까지", "3\~5시", "오늘부터 3일간", "이번 주 내내"
+- **반복 일정** — "매주 월수금 7시", "격주 화요일", "매달 마지막 주 금요일" → 캘린더용 RRULE
 - **구어체** — "담주 월욜", "낼 오후 2시", "내일모레", "3시쯤", 띄어쓰기 생략
 - **틀리느니 비운다** — "3일 연속", "2시간짜리", "1월생"은 날짜로 잡지 않음
 - **서버에서도 정확** — `timezone: 'Asia/Seoul'` 한 줄이면 UTC 서버에서도 한국 시간
@@ -69,6 +70,22 @@ parseAll('내일 10시 아니면 모레 2시');
 // [ { date: 10-31 10:00, ... }, { date: 11-01 14:00, ... } ]
 ```
 
+### 반복 일정
+
+`recurrence.rrule`은 [RFC 5545 RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)이라 Google·Apple 캘린더, iCal에 그대로 넣을 수 있습니다. `date`는 기준 시각 이후 첫 발생입니다.
+
+```ts
+parse('매주 월수금 오전 7시 운동');
+// {
+//   date: 2026-11-02 07:00,
+//   text: '매주 월수금 오전 7시',
+//   recurrence: { freq: 'WEEKLY', interval: 1, byWeekday: [1, 3, 5], rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR' }
+// }
+
+parse('매달 마지막 주 금요일 회식')?.recurrence?.rrule;  // 'FREQ=MONTHLY;BYDAY=-1FR'
+parse('격주 화요일')?.recurrence?.rrule;                 // 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU'
+```
+
 ### API
 
 | 함수 | 반환 |
@@ -84,6 +101,7 @@ parseAll('내일 10시 아니면 모레 2시');
 | `text` | 문장에서 찾은 부분 (`'다음주 수요일 저녁 7시'`) |
 | `index` | 문장 안에서의 위치 |
 | `hasTime` | 시각까지 말했는지. `false`면 `date`는 그날 `defaultHour`시 |
+| `recurrence` | 반복 일정이면 규칙 (`freq`, `interval`, `byWeekday`, …, `rrule`) |
 
 ### 옵션
 
@@ -116,6 +134,7 @@ parseAll('내일 10시 아니면 모레 2시');
 | 시각 | 오후 3시 · 3시 반 · 15:30 · 3pm · 정오 · 자정 · 점심 · 퇴근 · 5시 10분 전 |
 | 마감 | \~까지 · \~안에 · \~중으로 · 이번 주 안에 · 오전 중으로 · 퇴근 전까지 |
 | 구간 | A부터 B까지 · 3\~5시 · 월\~금 · 오늘부터 3일간 · 3박 4일 · 이번 주 내내 |
+| 반복 | 매일 · 매주 월수금 · 매주 월\~금 · 격주 · 평일마다 · 매달 15일 · 매월 말일 · 매달 마지막 주 금요일 · 매년 3월 1일 · 2시간마다 |
 | 문장 | 띄어쓰기 생략 · 조사(은·는·도) · 어림말(쯤·경·께) · 여러 개 추출 |
 
 입력별 결과 전체는 [SPEC.md](./SPEC.md)에 있습니다. 인식 못 하는 문장이 있으면 [제보해 주세요](https://github.com/jwn7/ko-chrono/issues/new?template=sentence.yml).
@@ -193,7 +212,7 @@ parseAll('내일 10시 아니면 모레 2시');
 
 ## 로드맵
 
-- [ ] 반복 일정 (매주 월요일 9시, 격주)
+- [x] 반복 일정 (매주 월요일 9시, 격주) → RRULE
 - [ ] 명절·공휴일 (설 연휴, 추석 전날, 크리스마스)
 - [ ] chrono-node `ko` 로케일 기여
 
@@ -203,7 +222,7 @@ parseAll('내일 10시 아니면 모레 2시');
 
 ```bash
 npm install
-npm test          # 351개 테스트
+npm test
 npm run build
 ```
 
