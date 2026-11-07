@@ -5,5 +5,3 @@ Follow-ups to the review comments on #685. Thanks for the pointers.
 - **`점심`** (lunchtime) added to the time-of-day words in `KOTimeExpressionParser`, so `점심 12시` and `점심 1시` (→ 13:00) parse.
 
 `npm test`: 162 suites, 769 tests pass.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
