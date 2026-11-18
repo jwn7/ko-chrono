@@ -659,7 +659,8 @@ describe('반복 일정 (규칙 27)', () => {
   it('매년 3월 1일', () =>
     expect(rec('매년 3월 1일')).toMatchObject({ date: d(2027, 3, 1), rrule: 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1' }));
   it('2시간마다', () => expect(rec('2시간마다')).toMatchObject({ date: d(2026, 10, 30, 16), rrule: 'FREQ=HOURLY;INTERVAL=2' }));
-  it('매주 회의 (요일 없음 → null)', () => expect(p('매주 회의')).toBeNull());
+  it('매주 회의 (요일 없음 → 오늘부터 매주)', () =>
+    expect(rec('매주 회의')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY' }));
   it('반복이 아니면 recurrence 없음', () => expect(p('다음주 월요일')!.recurrence).toBeUndefined());
   it('구조화된 값', () =>
     expect(p('매주 월수금 7시')!.recurrence).toEqual({
@@ -668,6 +669,53 @@ describe('반복 일정 (규칙 27)', () => {
       byWeekday: [1, 3, 5],
       rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
     }));
+});
+
+describe('주기만 있는 반복 (규칙 27, 이슈 #1)', () => {
+  const rec = (s: string) => {
+    const r = p(s);
+    return r && { date: r.date, hasTime: r.hasTime, rrule: r.recurrence?.rrule, text: r.text };
+  };
+  // 요일·날짜가 없으면 오늘(시각이 지났으면 내일)부터. 요일·날짜는 RRULE에 넣지 않고 DTSTART(date)를 따른다
+  it('매주', () => expect(rec('매주')).toEqual({ date: d(2026, 10, 30), hasTime: false, rrule: 'FREQ=WEEKLY', text: '매주' }));
+  it('격주', () => expect(rec('격주')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY;INTERVAL=2' }));
+  it('매월', () => expect(rec('매월')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=MONTHLY' }));
+  it('매달', () => expect(rec('매달')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=MONTHLY' }));
+  it('매년', () => expect(rec('매년')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=YEARLY' }));
+  it('해마다', () => expect(rec('해마다')).toMatchObject({ rrule: 'FREQ=YEARLY' }));
+  it('2개월마다', () => expect(rec('2개월마다')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=MONTHLY;INTERVAL=2' }));
+  it('두 달마다', () => expect(rec('두 달마다')).toMatchObject({ rrule: 'FREQ=MONTHLY;INTERVAL=2' }));
+  it('한 달마다', () => expect(rec('한 달마다')).toMatchObject({ rrule: 'FREQ=MONTHLY' }));
+  it('3년마다', () => expect(rec('3년마다')).toMatchObject({ rrule: 'FREQ=YEARLY;INTERVAL=3' }));
+  it('일주일마다', () => expect(rec('일주일마다')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY' }));
+  it('2주마다', () => expect(rec('2주마다')).toMatchObject({ rrule: 'FREQ=WEEKLY;INTERVAL=2' }));
+  it('일주일마다 정기회의를 엽시다', () =>
+    expect(rec('일주일마다 정기회의를 엽시다')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=WEEKLY', text: '일주일마다' }));
+  it('격주로 만나자', () => expect(rec('격주로 만나자')).toMatchObject({ rrule: 'FREQ=WEEKLY;INTERVAL=2', text: '격주' }));
+  // "N일마다"는 N일 간격 ("3일"이라는 날짜가 아님)
+  it('3일마다', () => expect(rec('3일마다')).toMatchObject({ date: d(2026, 10, 30), rrule: 'FREQ=DAILY;INTERVAL=3', text: '3일마다' }));
+  it('14일마다 정산', () => expect(rec('14일마다 정산')).toMatchObject({ rrule: 'FREQ=DAILY;INTERVAL=14' }));
+  it('이틀마다', () => expect(rec('이틀마다')).toMatchObject({ rrule: 'FREQ=DAILY;INTERVAL=2' }));
+  // 시각이 있으면 지난 시각은 건너뛴다
+  it('매주 오후 3시', () =>
+    expect(rec('매주 오후 3시')).toMatchObject({ date: d(2026, 10, 30, 15), hasTime: true, rrule: 'FREQ=WEEKLY' }));
+  it('매달 오전 9시', () => expect(rec('매달 오전 9시')).toMatchObject({ date: d(2026, 10, 31, 9), rrule: 'FREQ=MONTHLY' }));
+  // "N개월마다", "일주일마다" 뒤에 날짜·요일이 오면 그 날짜·요일로 반복
+  it('2개월마다 1일', () =>
+    expect(rec('2개월마다 1일')).toMatchObject({ date: d(2026, 11, 1), rrule: 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=1' }));
+  it('달마다 14일', () => expect(rec('달마다 14일')).toMatchObject({ date: d(2026, 11, 14), rrule: 'FREQ=MONTHLY;BYMONTHDAY=14' }));
+  it('한달마다 14일', () => expect(rec('한달마다 14일')).toMatchObject({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=14' }));
+  it('매달 14일마다', () => expect(rec('매달 14일마다')).toMatchObject({ date: d(2026, 11, 14), rrule: 'FREQ=MONTHLY;BYMONTHDAY=14' }));
+  it('일주일마다 월요일', () => expect(rec('일주일마다 월요일')).toMatchObject({ date: d(2026, 11, 2), rrule: 'FREQ=WEEKLY;BYDAY=MO' }));
+  it('2년마다 3월 1일', () =>
+    expect(rec('2년마다 3월 1일')).toMatchObject({ date: d(2027, 3, 1), rrule: 'FREQ=YEARLY;INTERVAL=2;BYMONTH=3;BYMONTHDAY=1' }));
+  // 매주 + 며칠은 앞뒤가 안 맞는다. 하루짜리 날짜로 바꿔 내지 않고 null
+  it('매주 14일 공과금 납부', () => expect(p('매주 14일 공과금 납부')).toBeNull());
+  it('매주 14일', () => expect(p('매주 14일')).toBeNull());
+  it('일주일마다 3일', () => expect(p('일주일마다 3일')).toBeNull());
+  // "매달다"는 반복이 아님
+  it('줄에 매달려 있어', () => expect(p('줄에 매달려 있어')).toBeNull());
+  it('간판을 매달았다', () => expect(p('간판을 매달았다')).toBeNull());
 });
 
 describe('반복 일정의 시작·끝 (규칙 34)', () => {

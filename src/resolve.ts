@@ -342,9 +342,12 @@ function periodEnd(d: Date, c: Components): Date {
  * 반복 일정 (규칙 27): date = 기준 시각 이후 첫 발생.
  * 시각이 있으면 지난 시각은 건너뛰고, 날짜만 있으면 오늘도 포함한다.
  * "매달 31일"은 31일이 없는 달을 건너뛴다 (RRULE과 같은 동작).
+ * 주기 말만 있으면("매주", "2개월마다") 오늘부터. 요일·날짜는 RRULE에 넣지 않고 첫 발생일(DTSTART)을 따른다.
  */
 function resolveRecurrence(group: Fragment[], c: Components, opts: ResolveOptions): ParseResult | null {
   const r = c.recur!;
+  // "매주 14일": 매주와 며칠은 같이 올 수 없다. 추측하지 않는다
+  if (r.freq === 'WEEKLY' && c.day !== undefined) return null;
   const ref = opts.referenceDate;
   const hasTime = c.hour !== undefined;
   const today = new Date(ref);
@@ -361,7 +364,7 @@ function resolveRecurrence(group: Fragment[], c: Components, opts: ResolveOption
     d = new Date(ref);
     d.setSeconds(0, 0);
     d.setMinutes(d.getMinutes() + r.interval * (r.freq === 'HOURLY' ? 60 : 1));
-  } else if (r.freq === 'DAILY') {
+  } else if (r.freq === 'DAILY' || (!r.byWeekday?.length && r.byMonthDay === undefined && r.byMonth === undefined)) {
     d = at(today);
     if (!ok(d)) d.setDate(d.getDate() + 1);
   } else if (r.freq === 'WEEKLY') {
