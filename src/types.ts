@@ -68,6 +68,8 @@ export interface Components {
   nthWeek?: number;
   /** "이번 주 내내": 그 기간 전체. date는 시작, end는 기간의 끝 */
   whole?: boolean;
+  /** 뒤따르는 말이 과거형 ("3시에 만났어"). 규칙 37: 가까운 미래가 아니라 가까운 과거를 고른다 */
+  past?: boolean;
   /** 이 조각이 "~까지" 종료점인지 */
   isEnd?: boolean;
   /** 이 조각이 "~부터" 시작점인지 */
@@ -133,6 +135,8 @@ export interface ParseResult {
   recurrence?: Recurrence;
   /** 해석이 갈릴 수 있으면 그 이유와 다른 후보. 사용자에게 되묻거나 LLM에 넘길지 판단할 때 쓴다 */
   ambiguity?: Ambiguity;
+  /** 뒤따르는 말이 과거형이면 'past' ("3시에 만났어"). 이때 연도·날짜 없는 표현은 가까운 과거로 해석한다 (규칙 37) */
+  tense?: 'past';
 }
 
 export type Parser = (text: string) => Fragment[];

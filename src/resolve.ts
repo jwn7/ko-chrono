@@ -144,6 +144,8 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   let d = new Date(ref);
   d.setSeconds(0, 0);
   let dateSet = false;
+  // 연도·달·주를 말하지 않아 "가까운 쪽"으로 고른 날짜의 주기. 과거형에서 한 주기 되돌릴 때 쓴다
+  let bare: 'week' | 'day' | 'year' | undefined;
   const hasTime = c.hour !== undefined || c.hourOffset !== undefined || c.minuteOffset !== undefined;
 
   // 0. 음력 명절·음력 날짜 (규칙 29, 32): 연도를 말했으면 그 음력 해, 아니면 (연휴까지) 지나지 않은 가장 가까운 것.
@@ -154,7 +156,8 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     const said = c.year ?? (c.yearOffset !== undefined ? ref.getFullYear() + c.yearOffset : undefined);
     const tail = (c.dayOffset ?? 0) + (c.durationDays ? c.durationDays - 1 : 0);
     const y0 = ref.getFullYear();
-    const years = said !== undefined ? [said] : [y0 - 1, y0, y0 + 1, y0 + 2];
+    // 과거형(규칙 37)이면 거꾸로: 이미 시작된 가장 가까운 것
+    const years = said !== undefined ? [said] : c.past ? [y0 + 1, y0, y0 - 1, y0 - 2] : [y0 - 1, y0, y0 + 1, y0 + 2];
     const solarOf = (y: number) =>
       c.lunar ? lunarHoliday(y, c.lunar) : lunarToSolar(y, c.lunarDate!.month, c.lunarDate!.day, c.lunarDate!.leap);
     let found: Date | null = null;
@@ -162,7 +165,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
       const s = solarOf(y);
       if (!s) continue; // 그 해에 없는 날 ("음력 2월 30일", 윤달)
       const lastMoment = new Date(s.getFullYear(), s.getMonth(), s.getDate() + tail, 23, 59);
-      if (said !== undefined || lastMoment >= ref) {
+      if (said !== undefined || (c.past ? s <= ref : lastMoment >= ref)) {
         found = s;
         break;
       }
@@ -180,15 +183,19 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
     // "5일까지"처럼 일만 있으면: 오늘이 그날을 넘었으면 다음 달, 아니면 이번 달 (오늘 포함).
     // 그 달에 없는 날("11월에 31일")은 아래에서 null
     if (!hasYear && c.month === undefined && c.day !== undefined && c.monthOffset === undefined && c.nthWeek === undefined) {
-      if (c.day < ref.getDate()) m0 += 1;
+      // 과거형(규칙 37)이면 반대로: 아직 안 온 날이면 지난달
+      if (c.past ? c.day > ref.getDate() : c.day < ref.getDate()) m0 += c.past ? -1 : 1;
       y += Math.floor(m0 / 12);
-      m0 %= 12;
+      m0 = (m0 + 12) % 12;
+      bare = 'day';
     }
     // 연도 미지정 + 이미 지났으면 내년으로.
     // 월일("3월 1일")은 그 날이, 월("3월", "2월 말")은 그 달이 통째로 지났을 때.
     if (!hasYear && c.month !== undefined) {
       const lastDay = c.day ?? lastDayOfMonth(y, m0);
-      if (new Date(y, m0, lastDay, 23, 59) < ref) y += 1;
+      // 과거형(규칙 37)이면 반대로: 그 날(달)이 아직 시작되지 않았으면 작년
+      if (c.past ? new Date(y, m0, c.day ?? 1) > ref : new Date(y, m0, lastDay, 23, 59) < ref) y += c.past ? -1 : 1;
+      bare = 'year';
     }
     let day = c.day ?? (c.month !== undefined || (hasYear && !c.sameDay) ? 1 : ref.getDate());
     if (c.monthPart) day = partDay(y, m0, c.monthPart);
@@ -247,6 +254,11 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
       // "다음 금요일"은 오늘 제외 미래, "지난 금요일"은 오늘 제외 과거
       if (c.weekdayDir === 'next' && diff === 0) diff = 7;
       if (c.weekdayDir === 'past') diff = diff === 0 ? -7 : diff - 7;
+      // 과거형(규칙 37): 오늘 포함 가장 가까운 과거의 그 요일
+      if (c.past && c.weekdayDir === undefined) {
+        if (diff > 0) diff -= 7;
+        bare = 'week';
+      }
       today.setDate(today.getDate() + diff);
       d = today;
     }
@@ -270,11 +282,20 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
       d = new Date(ref);
       // 시간만 있고 날짜가 없으면: 오늘, 이미 지났으면 내일
       d.setHours(hour, c.minute ?? 0, 0, 0);
-      if (d < ref) d.setDate(d.getDate() + 1);
+      // 과거형(규칙 37)이면 반대로: 아직 안 왔으면 어제
+      if (c.past) {
+        if (d > ref) d.setDate(d.getDate() - 1);
+      } else if (d < ref) d.setDate(d.getDate() + 1);
     } else {
       d.setHours(hour, c.minute ?? 0, 0, 0);
       // "내일 자정" = 내일이 끝나는 시점
       if (c.midnight) d.setDate(d.getDate() + 1);
+      // 과거형(규칙 37): "금요일 5시에 냈어"(금요일 14시)처럼 오늘로 잡았는데 시각이 아직이면 한 주기 앞으로
+      if (c.past && bare && d > ref) {
+        const back = stepBack(d, bare);
+        if (!back) return null;
+        d = back;
+      }
     }
   } else if (c.hourOffset !== undefined || c.minuteOffset !== undefined) {
     d = new Date(ref);
@@ -296,6 +317,7 @@ export function resolve(group: Fragment[], opts: ResolveOptions): ParseResult | 
   // text는 parseAll()에서 원문 slice로 채운다. _end는 그때 쓰는 내부 값.
   const result: ParseResult = { date: d, text: '', index: first.index, hasTime };
   if (ambiguity) result.ambiguity = ambiguity;
+  if (c.past) result.tense = 'past';
   (result as ParseResult & { _end: number })._end = last.index + last.text.length;
 
   // "오늘부터 3일간", "3시부터 2시간 동안": 시작일을 포함한 기간의 끝
@@ -426,7 +448,9 @@ function ambiguityOf(c: Components, d: Date, dateSet: boolean, opts: ResolveOpti
     const altHour = used === 12 ? 0 : used < 12 ? used + 12 : used - 12;
     const alt = new Date(dateSet ? d : ref);
     alt.setHours(altHour, c.minute ?? 0, 0, 0);
-    if (!dateSet && alt < ref) alt.setDate(alt.getDate() + 1);
+    if (!dateSet && c.past) {
+      if (alt > ref) alt.setDate(alt.getDate() - 1);
+    } else if (!dateSet && alt < ref) alt.setDate(alt.getDate() + 1);
     return { reason: 'meridiem', alternatives: [alt] };
   }
   // "다음 토요일": 규칙 23(오늘 제외 가장 가까운)과 "다음 주 토요일"이 다르면 후보로
@@ -438,6 +462,19 @@ function ambiguityOf(c: Components, d: Date, dateSet: boolean, opts: ResolveOpti
   }
   if (c.approximate) return { reason: 'approximate-time', alternatives: [] };
   return undefined;
+}
+
+/** 과거형(규칙 37): 같은 요일·일·월일의 바로 앞 것. 그 달·해에 없는 날이면 null */
+function stepBack(d: Date, unit: 'week' | 'day' | 'year'): Date | null {
+  const r = new Date(d);
+  if (unit === 'week') {
+    r.setDate(r.getDate() - 7);
+    return r;
+  }
+  if (unit === 'day') r.setMonth(r.getMonth() - 1);
+  else r.setFullYear(r.getFullYear() - 1);
+  // 없는 날짜는 JS가 다음 달로 넘긴다 (3/31 - 1달 → 3/3). 추측하지 않는다
+  return r.getDate() === d.getDate() ? r : null;
 }
 
 function partDay(y: number, m0: number, part: NonNullable<Components['monthPart']>): number {

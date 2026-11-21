@@ -13,6 +13,7 @@ import { alignEnd, groupFragments, isDayOnly, isTimeOnly, isWeekdayOnly, merge, 
 import { fromWallClock, toWallClock } from './util/timezone.js';
 import { parseKoreanNumber } from './util/number.js';
 import { toEvent, type ParsedEvent } from './event.js';
+import { isPastClause } from './tense.js';
 
 export type { Ambiguity, Frequency, ParseOptions, ParseResult, Recurrence, WeekStart } from './types.js';
 export type { ParsedEvent } from './event.js';
@@ -29,6 +30,8 @@ const WHOLE = /^\s*내내/;
 const GAP = /^[\s,]*$/;
 // "다음주부터 매주 월요일"
 const FROM_GAP = /^\s*부터[\s,]*$/;
+// 두 날짜 표현이 한 절에 있다고 보는 사이 글자: "1시에 점심 먹었어"의 "에 "
+const SAME_CLAUSE = /^(?:\s|에|엔|은|는|도|쯤)*$/;
 // "총 8회", "10번 반복", "총 열 번". "매일 3번"은 하루 횟수일 수 있어 "총"이나 "반복"이 있을 때만
 const COUNT = /^[\s,]*(?:총\s*(\d{1,3}|[한두세네다섯여섯일곱여덟아홉열스무]+)\s*(?:번|회)(?:\s*반복)?|(\d{1,3}|[한두세네다섯여섯일곱여덟아홉열스무]+)\s*(?:번|회)\s*반복)/;
 
@@ -89,13 +92,26 @@ function parseLocal(text: string, opts: ResolveOptions): ParseResult[] {
   const comps: Components[] = [];
   const resultGroups: Fragment[][] = [];
 
-  for (const g of groups) {
+  // 규칙 37: 표현 뒤의 말이 과거형인지. 뒤에서부터 본다. "1시에 점심 먹었어"처럼 다음 표현이
+  // 조사만 사이에 두고 이어지면 같은 절이라 그쪽 시제를 따른다
+  const pastOf: boolean[] = [];
+  for (let gi = groups.length - 1; gi >= 0; gi--) {
+    const last = groups[gi][groups[gi].length - 1];
+    const next = groups[gi + 1];
+    const tail = text.slice(last.index + last.text.length, next?.[0].index ?? text.length);
+    pastOf[gi] = next !== undefined && SAME_CLAUSE.test(tail) ? pastOf[gi + 1] : isPastClause(tail);
+  }
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
     const last = g[g.length - 1];
     const tail = text.slice(last.index + last.text.length);
     const until = UNTIL.exec(tail) ?? WHOLE.exec(tail);
     if (until && until[0].includes('내내')) last.components.whole = true;
     else if (until) last.components.isEnd = true;
     if (FROM.test(tail)) last.components.isStart = true;
+    // 규칙 37: 마감·구간이 아닌 표현 뒤의 말이 과거형이면 가까운 과거로 해석한다
+    if (!until && !last.components.isStart && pastOf[gi]) last.components.past = true;
 
     const r = resolve(g, opts);
     if (!r) continue;

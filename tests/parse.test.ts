@@ -993,3 +993,89 @@ describe('문장 속', () => {
     expect(p('일단 해보자')).toBeNull();
   });
 });
+
+describe('과거형 문장 (규칙 37)', () => {
+  const past = (s: string) => {
+    const r = p(s);
+    return r && { date: r.date, tense: r.tense };
+  };
+  const on = (y: number, m: number, day: number, h = 0, min = 0) => ({ date: d(y, m, day, h, min), tense: 'past' });
+  const future = (y: number, m: number, day: number, h = 0, min = 0) => ({ date: d(y, m, day, h, min), tense: undefined });
+
+  // 시각만: 아직 안 온 시각이면 어제 (규칙 4의 반대 방향)
+  it('새벽 3시에 깨서 못 잤어', () => expect(past('새벽 3시에 깨서 못 잤어')).toEqual(on(2026, 10, 30, 3)));
+  it('3시에 회의했어', () => {
+    expect(past('3시에 회의했어')).toEqual(on(2026, 10, 29, 15));
+    expect(p('3시에 회의했어')!.ambiguity).toEqual({ reason: 'meridiem', alternatives: [d(2026, 10, 30, 3)] });
+  });
+  it('1시에 점심 먹었어', () => expect(past('1시에 점심 먹었어')).toEqual(on(2026, 10, 30, 13)));
+  it('9시에 출근했어', () => expect(past('9시에 출근했어')).toEqual(on(2026, 10, 30, 9)));
+  it('저녁 7시에 만났어', () => expect(past('저녁 7시에 만났어')).toEqual(on(2026, 10, 29, 19)));
+  it('아침에 커피 마셨어', () => expect(past('아침에 커피 마셨어')).toEqual(on(2026, 10, 30, 8)));
+  it('3시에 일어났어', () => expect(past('3시에 일어났어')).toEqual(on(2026, 10, 29, 15)));
+  it('2시에 도착했습니다', () => expect(past('2시에 도착했습니다')).toEqual(on(2026, 10, 30, 14)));
+  it('5시에 끝났는데 ㅠㅠ', () => expect(past('5시에 끝났는데 ㅠㅠ')).toEqual(on(2026, 10, 29, 17)));
+  it('3시에 혼자 갔어', () => expect(past('3시에 혼자 갔어')).toEqual(on(2026, 10, 29, 15)));
+  it('3시에 만났어?', () => expect(past('3시에 만났어?')).toEqual(on(2026, 10, 29, 15)));
+
+  // 연도 없는 월일: 아직 안 온 날이면 작년 (규칙 5·13의 반대 방향)
+  it('12월 1일에 이사했었어', () => expect(past('12월 1일에 이사했었어')).toEqual(on(2025, 12, 1)));
+  it('11월 5일에 갔어', () => expect(past('11월 5일에 갔어')).toEqual(on(2025, 11, 5)));
+  it('10월 3일에 갔어', () => expect(past('10월 3일에 갔어')).toEqual(on(2026, 10, 3)));
+  it('10월 30일에 갔어 (오늘)', () => expect(past('10월 30일에 갔어')).toEqual(on(2026, 10, 30)));
+  it('크리스마스에 만났어', () => expect(past('크리스마스에 만났어')).toEqual(on(2025, 12, 25)));
+  it('12월에 다녀왔어', () => expect(past('12월에 다녀왔어')).toEqual(on(2025, 12, 1)));
+  it('추석에 고향 갔어', () => expect(past('추석에 고향 갔어')).toEqual(on(2026, 9, 25)));
+  it('2월 29일에 갔어 (작년에 없는 날)', () => expect(past('2월 29일에 갔어')).toBeNull());
+
+  // 요일·일 단독: 오늘 포함 가장 가까운 과거 (규칙 3·35의 반대 방향)
+  it('월요일에 만났어', () => expect(past('월요일에 만났어')).toEqual(on(2026, 10, 26)));
+  it('금요일에 제출했어 (오늘)', () => expect(past('금요일에 제출했어')).toEqual(on(2026, 10, 30)));
+  it('금요일 5시에 제출했어 (오늘 5시는 아직)', () => expect(past('금요일 5시에 제출했어')).toEqual(on(2026, 10, 23, 17)));
+  it('토요일 저녁에 봤어', () => expect(past('토요일 저녁에 봤어')).toEqual(on(2026, 10, 24, 19)));
+  it('주말에 놀았어', () => expect(past('주말에 놀았어')).toEqual(on(2026, 10, 24)));
+  it('5일에 갔어', () => expect(past('5일에 갔어')).toEqual(on(2026, 10, 5)));
+  it('30일에 갔어 (오늘)', () => expect(past('30일에 갔어')).toEqual(on(2026, 10, 30)));
+  it('31일에 갔어 (9월엔 31일이 없음)', () => expect(past('31일에 갔어')).toBeNull());
+
+  // 날짜가 정해진 표현은 그대로, 표시만 붙는다
+  it('어제 3시에 만났어', () => expect(past('어제 3시에 만났어')).toEqual(on(2026, 10, 29, 15)));
+  it('오늘 아침에 늦잠 잤어', () => expect(past('오늘 아침에 늦잠 잤어')).toEqual(on(2026, 10, 30, 8)));
+  it('지난주 금요일에 봤어', () => expect(past('지난주 금요일에 봤어')).toEqual(on(2026, 10, 23)));
+  it('2025년 5월 1일에 입사했어', () => expect(past('2025년 5월 1일에 입사했어')).toEqual(on(2025, 5, 1)));
+
+  // 과거형처럼 보여도 미래 일정: 바꾸지 않는다 (규칙 10)
+  it('3시에 보자', () => expect(past('3시에 보자')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 만나기로 했어', () => expect(past('3시에 만나기로 했어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 온다고 했어', () => expect(past('3시에 온다고 했어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 온댔어', () => expect(past('3시에 온댔어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 갔다 올게', () => expect(past('3시에 갔다 올게')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 끝났으면 좋겠다', () => expect(past('3시에 끝났으면 좋겠다')).toEqual(future(2026, 10, 30, 15)));
+  it('3시로 예약했어', () => expect(past('3시로 예약했어')).toEqual(future(2026, 10, 30, 15)));
+  it('월요일로 잡았어', () => expect(past('월요일로 잡았어')).toEqual(future(2026, 11, 2)));
+  it('3시에 미팅 잡혔어', () => expect(past('3시에 미팅 잡혔어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 자려고 했는데', () => expect(past('3시에 자려고 했는데')).toEqual(future(2026, 10, 30, 15)));
+  it('금요일에 냈어야 했는데', () => expect(past('금요일에 냈어야 했는데')).toEqual(future(2026, 10, 30)));
+  it('3시 회의 깜빡했어', () => expect(past('3시 회의 깜빡했어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 회의 있어', () => expect(past('3시에 회의 있어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 하면 재밌어', () => expect(past('3시에 하면 재밌어')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 봐 저번엔 늦었잖아', () => expect(past('3시에 봐 저번엔 늦었잖아')).toEqual(future(2026, 10, 30, 15)));
+  it('3시에 만나자. 어제는 미안했어', () => expect(past('3시에 만나자. 어제는 미안했어')).toEqual(future(2026, 10, 30, 15)));
+  it('내일 3시라고 했잖아', () => expect(past('내일 3시라고 했잖아')).toEqual(future(2026, 10, 31, 15)));
+  it('3시까지 보내 달라고 했어', () => {
+    const r = p('3시까지 보내 달라고 했어');
+    expect([r!.end, r!.tense]).toEqual([d(2026, 10, 30, 15), undefined]);
+  });
+  it('매주 월요일에 운동했어 (반복은 그대로)', () => {
+    const r = p('매주 월요일에 운동했어');
+    expect([r!.date, r!.recurrence?.rrule, r!.tense]).toEqual([d(2026, 11, 2), 'FREQ=WEEKLY;BYDAY=MO', undefined]);
+  });
+  it('앞 문장만 과거 (3시에 일어났어 5시에 보자)', () => {
+    const rs = parseAll('3시에 일어났어 5시에 보자', { referenceDate: ref });
+    expect(rs.map((r) => [r.date, r.tense])).toEqual([[d(2026, 10, 29, 15), 'past'], [d(2026, 10, 30, 17), undefined]]);
+  });
+  it('시간대 옵션에서도 (Asia/Seoul)', () => {
+    const r = parse('새벽 3시에 깨서 못 잤어', { referenceDate: new Date(Date.UTC(2026, 9, 30, 5)), timezone: 'Asia/Seoul' });
+    expect([r!.date, r!.tense]).toEqual([new Date(Date.UTC(2026, 9, 29, 18)), 'past']);
+  });
+});

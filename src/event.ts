@@ -13,6 +13,8 @@ export interface ParsedEvent {
   recurrence?: Recurrence;
   /** 해석이 갈릴 수 있으면 그 이유와 다른 후보 ("3시" → 15시, 후보 3시) */
   ambiguity?: Ambiguity;
+  /** 과거형 문장이면 'past' ("어제 3시에 만났어") */
+  tense?: 'past';
 }
 
 // 날짜 바로 뒤에 붙은 조사: "3시에", "모레까지는", "주말엔"
@@ -41,5 +43,6 @@ export function toEvent(text: string, results: ParseResult[]): ParsedEvent {
   if (first.end) event.end = first.end;
   if (first.recurrence) event.recurrence = first.recurrence;
   if (first.ambiguity) event.ambiguity = first.ambiguity;
+  if (first.tense) event.tense = first.tense;
   return event;
 }

@@ -94,6 +94,7 @@ parse('내일 오후 3시', { timezone: 'Asia/Seoul' }); // 3 PM in Seoul
 | Holidays | 크리스마스, 설 연휴, 추석 전날, 부처님 오신 날, 음력 3월 3일 (lunar) |
 | Business words | 금일, 익일, 차주, 익월 초, 금월 말까지 |
 | Recurrence | 매일, 매주, 매주 월수금, 격주, 일주일마다, 2개월마다, 3일마다, 매달 15일, 매달 마지막 주 금요일, 다음달까지, 총 8회 |
+| Past tense | 새벽 3시에 깨서 못 잤어 (3 AM today, not tomorrow), 월요일에 만났어 (last Monday), 12월 1일에 이사했었어 (last December) |
 
 Phrases that aren't dates, like "3일 연속" (3 days in a row), "주 5일 근무" (5 days a week) or "내가 낼게" (I'll pay), return `null`. The full rule set is in [SPEC.md](./SPEC.md) (Korean).
 
@@ -117,6 +118,7 @@ Phrases that aren't dates, like "3일 연속" (3 days in a row), "주 5일 근�
 | `hasTime` | Whether a time of day was given. If `false`, `date` is at `defaultHour` |
 | `recurrence` | Recurrence info, including `rrule` |
 | `ambiguity` | `{ reason, alternatives }` when the reading is unclear. reason is `meridiem`, `next-weekday` or `approximate-time` |
+| `tense` | `'past'` when the sentence is in the past tense ("3시에 만났어"). A bare time, weekday or month-day then resolves to the nearest past one instead of the next one |
 
 Options
 
